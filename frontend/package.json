@@ -9,7 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cornerstonejs/core": "^5.7.0",
+    "@cornerstonejs/dicom-image-loader": "^5.7.0",
+    "@cornerstonejs/tools": "^5.7.0",
     "axios": "^1.19.0",
+    "dicom-parser": "^1.8.21",
+    "events": "^3.3.0",
     "pinia": "^4.0.2",
     "vue": "^3.5.40",
     "vue-router": "^5.2.0"
