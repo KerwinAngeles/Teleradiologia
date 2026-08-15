@@ -27,6 +27,66 @@ services:
     volumes:
       - orthanc-data:/var/lib/orthanc/db
 
+  # Supabase self-hosted, solo la pieza de auth (GoTrue). Base propia, separada de la nuestra.
+  supabase-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: supabase_auth
+      POSTGRES_USER: supabase_auth_admin
+      POSTGRES_PASSWORD: supabase_auth
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./docker/supabase/01-init-auth.sql:/docker-entrypoint-initdb.d/01-init-auth.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U supabase_auth_admin -d supabase_auth']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  supabase-auth:
+    image: supabase/auth:v2.195.0
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: '9999'
+      API_EXTERNAL_URL: http://localhost:9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:supabase_auth@supabase-db:5432/supabase_auth?search_path=auth&sslmode=disable
+
+      GOTRUE_SITE_URL: http://localhost:5173
+      GOTRUE_URI_ALLOW_LIST: http://localhost:5173
+
+      # El alta pasa siempre por nuestra API, que crea el perfil local en estado Pendiente.
+      GOTRUE_DISABLE_SIGNUP: 'true'
+
+      GOTRUE_JWT_SECRET: clave-de-desarrollo-para-gotrue-de-al-menos-32-bytes
+      GOTRUE_JWT_EXP: '3600'
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+
+      # El control de acceso lo hace la aprobación del Admin, no la confirmación por email.
+      GOTRUE_MAILER_AUTOCONFIRM: 'true'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_SMTP_HOST: mailpit
+      GOTRUE_SMTP_PORT: '1025'
+      GOTRUE_SMTP_ADMIN_EMAIL: no-reply@teleradiologia.local
+      GOTRUE_SMTP_SENDER_NAME: 'Teleradiología'
+      GOTRUE_LOG_LEVEL: info
+    ports:
+      - '9999:9999'
+
+  # Atrapa-emails para desarrollo: nada sale a internet, se ven en la UI web.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # UI web
+
   api:
     build:
       context: ./backend
@@ -36,7 +96,21 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Default: 'Host=postgres;Port=5432;Database=teleradiologia;Username=teleradiologia;Password=teleradiologia'
       Orthanc__BaseUrl: 'http://orthanc:8042'
+      Orthanc__Username: 'admin'
+      Orthanc__Password: 'admin'
       Cors__AllowedOrigins__0: 'http://localhost:5173'
+
+      Supabase__Url: 'http://supabase-auth:9999'
+      Supabase__JwtSecret: 'clave-de-desarrollo-para-gotrue-de-al-menos-32-bytes'
+      # JWT con role=service_role: credencial de superusuario de GoTrue.
+      Supabase__ServiceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3ODY3NjMzMTgsImV4cCI6MTk0NDQ0MzMxOH0.BZ_EHadR7jmmWtannqkV0MIYnO85CECOdeMOPZ4fBnQ'
+      Supabase__Audience: 'authenticated'
+      # Vacío: GoTrue self-hosted no emite claim `iss`. Supabase Cloud sí.
+      Supabase__Issuer: ''
+      Email__SmtpHost: 'mailpit'
+      Email__SmtpPort: '1025'
+      Email__FromAddress: 'no-reply@teleradiologia.local'
+      Email__FromName: 'Teleradiología'
     ports:
       - '5080:8080'
     depends_on:
@@ -44,7 +118,12 @@ services:
         condition: service_healthy
       orthanc:
         condition: service_started
+      mailpit:
+        condition: service_started
+      supabase-auth:
+        condition: service_started
 
 volumes:
   postgres-data:
   orthanc-data:
+  supabase-db-data:
