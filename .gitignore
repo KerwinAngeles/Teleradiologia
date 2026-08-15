@@ -17,3 +17,6 @@ frontend/.vscode/*
 # OS
 .DS_Store
 Thumbs.db
+
+# Respaldos de base: contienen hashes de contraseña y datos de pacientes
+db/backups/
