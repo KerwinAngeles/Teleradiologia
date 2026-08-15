@@ -1,5 +1,10 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Teleradiologia.Domain/Teleradiologia.Domain.csproj" />
+    <Project Path="src/Teleradiologia.Application/Teleradiologia.Application.csproj" />
+    <Project Path="src/Teleradiologia.Infrastructure.Identity/Teleradiologia.Infrastructure.Identity.csproj" />
+    <Project Path="src/Teleradiologia.Infrastructure/Teleradiologia.Infrastructure.csproj" />
     <Project Path="src/Teleradiologia.Api/Teleradiologia.Api.csproj" />
+    <Project Path="src/Teleradiologia.Workers/Teleradiologia.Workers.csproj" />
   </Folder>
 </Solution>

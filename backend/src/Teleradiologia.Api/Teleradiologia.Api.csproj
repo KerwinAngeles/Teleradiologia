@@ -7,12 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Teleradiologia.Application\Teleradiologia.Application.csproj" />
+    <ProjectReference Include="..\Teleradiologia.Infrastructure\Teleradiologia.Infrastructure.csproj" />
+    <ProjectReference Include="..\Teleradiologia.Infrastructure.Identity\Teleradiologia.Infrastructure.Identity.csproj" />
+    <ProjectReference Include="..\Teleradiologia.Workers\Teleradiologia.Workers.csproj" />
   </ItemGroup>
 
 </Project>

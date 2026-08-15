@@ -1,21 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Teleradiologia.Api.Data;
+using Teleradiologia.Application.Abstractions;
 
 namespace Teleradiologia.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class HealthController(AppDbContext db) : ControllerBase
+[AllowAnonymous]
+public class HealthController(IDatabaseHealthCheck databaseHealthCheck) : ControllerBase
 {
-    /// <summary>
-    /// Verifica que la API está viva y que puede conectarse a la base de datos.
-    /// Útil para docker-compose healthchecks y para confirmar el scaffold end-to-end.
-    /// </summary>
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
-        var canConnectToDb = await db.Database.CanConnectAsync(ct);
+        var canConnectToDb = await databaseHealthCheck.CanConnectAsync(ct);
 
         return Ok(new
         {
