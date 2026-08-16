@@ -37,6 +37,12 @@ export default defineConfig({
         target: 'http://127.0.0.1:5080',
         changeOrigin: true,
       },
+      // ws: true — sin esto el handshake de SignalR no pasa el proxy.
+      '/hubs': {
+        target: 'http://127.0.0.1:5080',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   // `vite preview` no hereda el proxy de `server`.
@@ -45,6 +51,11 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:5080',
         changeOrigin: true,
+      },
+      '/hubs': {
+        target: 'http://127.0.0.1:5080',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },

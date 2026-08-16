@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNavegacionStore } from '@/stores/navegacion'
 import type { Rol } from '@/types/auth'
 
 declare module 'vue-router' {
@@ -40,15 +41,45 @@ const router = createRouter({
           props: true,
         },
         {
-          path: 'subir',
-          name: 'subir-estudio',
-          component: () => import('@/views/SubirEstudioView.vue'),
+          path: 'resultados',
+          name: 'resultados-estudio',
+          component: () => import('@/views/ResultadosEstudioView.vue'),
           meta: { roles: ['Tecnico', 'Admin'] },
         },
         {
           path: 'usuarios',
           name: 'usuarios',
           component: () => import('@/views/UsuariosView.vue'),
+          meta: { roles: ['Admin'] },
+        },
+        {
+          path: 'notificaciones',
+          name: 'notificaciones',
+          component: () => import('@/views/NotificacionesView.vue'),
+          meta: { roles: ['Radiologo', 'Admin'] },
+        },
+        {
+          path: 'configuracion',
+          name: 'configuracion',
+          component: () => import('@/views/ConfiguracionView.vue'),
+          meta: { roles: ['Admin'] },
+        },
+        {
+          path: 'configuracion/hospitales',
+          name: 'configuracion-hospitales',
+          component: () => import('@/views/ConfiguracionHospitalesView.vue'),
+          meta: { roles: ['Admin'] },
+        },
+        {
+          path: 'configuracion/eventos',
+          name: 'configuracion-eventos',
+          component: () => import('@/views/ConfiguracionEventosView.vue'),
+          meta: { roles: ['Admin'] },
+        },
+        {
+          path: 'configuracion/resumen',
+          name: 'configuracion-resumen',
+          component: () => import('@/views/ConfiguracionResumenView.vue'),
           meta: { roles: ['Admin'] },
         },
       ],
@@ -59,8 +90,12 @@ const router = createRouter({
   },
 })
 
-router.beforeEach((to) => {
+router.beforeEach((to, from) => {
   const auth = useAuthStore()
+
+  if (to.path !== from.path) {
+    useNavegacionStore().iniciar()
+  }
 
   if (!to.meta.public && !auth.estaAutenticado) {
     return { name: 'login', query: { redirect: to.fullPath } }
@@ -76,5 +111,8 @@ router.beforeEach((to) => {
 
   return true
 })
+
+router.afterEach(() => useNavegacionStore().terminar())
+router.onError(() => useNavegacionStore().terminar())
 
 export default router

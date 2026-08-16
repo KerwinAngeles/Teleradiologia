@@ -1,18 +1,38 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import { isAxiosError } from 'axios'
 import { api } from '@/services/api'
 import { useToastStore } from '@/stores/toast'
 import type { Estudio } from '@/types/estudio'
+import type { Hospital } from '@/types/hospital'
+import type { PrioridadEstudio } from '@/types/estudio'
 
-const router = useRouter()
+const emit = defineEmits<{ subido: [estudio: Estudio] }>()
+
 const toasts = useToastStore()
 
 const archivos = ref<File[]>([])
-const hospitalOrigen = ref('')
+const hospitales = ref<Hospital[]>([])
+const hospitalId = ref('')
+const prioridad = ref<PrioridadEstudio>('Rutina')
 const cargando = ref(false)
 const error = ref<string | null>(null)
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get<Hospital[]>('/hospitales')
+    hospitales.value = data
+    if (data.length === 1) hospitalId.value = data[0].id
+  } catch {
+    error.value = 'No se pudieron cargar los hospitales.'
+  }
+})
+
+const prioridades = [
+  { valor: 'Rutina' as const, etiqueta: 'Rutina', chip: 'chip-neutro', detalle: 'Lectura programada. 24 h de plazo.' },
+  { valor: 'Urgente' as const, etiqueta: 'Urgente', chip: 'chip-urgente', detalle: 'Requiere lectura pronta. 2 h de plazo.' },
+  { valor: 'Stat' as const, etiqueta: 'STAT', chip: 'chip-stat', detalle: 'Emergencia. 30 min de plazo.' },
+]
 
 function onFileChange(evento: Event) {
   const input = evento.target as HTMLInputElement
@@ -28,11 +48,18 @@ async function onSubmit() {
     return
   }
 
+  if (!hospitalId.value) {
+    error.value = 'Elegí el hospital de origen.'
+    toasts.error(error.value)
+    return
+  }
+
   const form = new FormData()
   for (const archivo of archivos.value) {
     form.append('Archivos', archivo)
   }
-  form.append('HospitalOrigen', hospitalOrigen.value)
+  form.append('HospitalId', hospitalId.value)
+  form.append('Prioridad', prioridad.value)
 
   cargando.value = true
   const avisoEnCurso = toasts.cargando(
@@ -43,7 +70,8 @@ async function onSubmit() {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     toasts.exito(`Estudio de ${data.pacienteNombre} subido — ${data.modalidad}, ya está en la worklist.`)
-    router.push(`/estudios/${data.id}`)
+    archivos.value = []
+    emit('subido', data)
   } catch (e) {
     const mensaje: string =
       isAxiosError(e) && e.response?.data?.message ? e.response.data.message : 'No se pudo subir el estudio.'
@@ -57,17 +85,7 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="stagger mx-auto max-w-3xl space-y-6">
-    <div>
-      <p class="meta-label">Ingreso de estudios</p>
-      <h1 class="display mt-1.5 text-3xl sm:text-4xl">Subir estudio</h1>
-      <p class="text-ink-soft mt-3 max-w-xl text-sm leading-relaxed">
-        Seleccioná los archivos DICOM del estudio (una o varias instancias). La metadata del paciente y del estudio se
-        extrae de los propios tags — no hay que tipearla.
-      </p>
-    </div>
-
-    <form class="glass space-y-6 p-7" @submit.prevent="onSubmit">
+  <form class="space-y-6" @submit.prevent="onSubmit">
       <div>
         <label class="meta-label mb-2 block" for="archivos">Archivos DICOM</label>
         <label
@@ -105,14 +123,45 @@ async function onSubmit() {
 
       <div>
         <label class="meta-label mb-2 block" for="hospital">Hospital de origen</label>
-        <input id="hospital" v-model="hospitalOrigen" type="text" required placeholder="Clínica del Valle" class="field" />
+        <select id="hospital" v-model="hospitalId" required class="field">
+          <option value="" disabled>Elegí un hospital…</option>
+          <option v-for="h in hospitales" :key="h.id" :value="h.id">
+            {{ h.nombre }}{{ h.provincia ? ` — ${h.provincia}` : '' }}
+          </option>
+        </select>
+        <p v-if="hospitales.length === 0" class="text-ink-faint mt-1.5 text-xs">
+          No tenés hospitales habilitados. Pedile a un administrador que te asigne uno.
+        </p>
+      </div>
+
+      <div>
+        <label class="meta-label mb-2 block">Prioridad</label>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <button
+            v-for="p in prioridades"
+            :key="p.valor"
+            type="button"
+            class="rounded-2xl border p-4 text-left transition-colors"
+            :class="
+              prioridad === p.valor
+                ? 'border-[var(--color-borde-fuerte)] bg-[var(--color-superficie-suave)]'
+                : 'border-[var(--color-borde)] hover:bg-[var(--color-superficie-suave)]'
+            "
+            @click="prioridad = p.valor"
+          >
+            <span class="chip" :class="p.chip">{{ p.etiqueta }}</span>
+            <span class="text-ink-soft mt-2 block text-xs leading-relaxed">{{ p.detalle }}</span>
+          </button>
+        </div>
+        <p class="text-ink-faint mt-2 text-xs">
+          Define el plazo de entrega. El reloj arranca cuando el estudio entra, no cuando lo toma el radiólogo.
+        </p>
       </div>
 
       <p v-if="error" class="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700">{{ error }}</p>
 
       <button type="submit" :disabled="cargando" class="btn-ink w-full">
-        {{ cargando ? 'Subiendo…' : 'Subir estudio' }}
+        {{ cargando ? 'Subiendo…' : 'Agregar resultado' }}
       </button>
-    </form>
-  </div>
+  </form>
 </template>

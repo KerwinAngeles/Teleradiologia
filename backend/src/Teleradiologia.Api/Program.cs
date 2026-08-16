@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Teleradiologia.Api.Authentication;
 using Teleradiologia.Api.ExceptionHandling;
+using Teleradiologia.Api.Realtime;
 using Teleradiologia.Application;
 using Teleradiologia.Application.Abstractions;
 using Teleradiologia.Infrastructure;
@@ -16,8 +17,16 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
+// SignalR no hereda las JsonOptions de MVC: sin esto los enums viajan como números y el
+// frontend recibe tipo: 1 en vez de "EstudioUrgente".
+builder.Services.AddSignalR().AddJsonProtocol(options =>
+    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, UsuarioIdProvider>();
+builder.Services.AddScoped<INotificadorTiempoReal, NotificadorSignalR>();
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<ITenantContext, TenantContext>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -34,7 +43,9 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            // SignalR abre el WebSocket con credenciales; sin esto el handshake falla.
+            .AllowCredentials();
     });
 });
 
@@ -70,6 +81,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificacionesHub>(NotificacionesHub.Ruta);
 
 await app.Services.VerificarBaseAsync();
 

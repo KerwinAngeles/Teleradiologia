@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { Estudio, EstadoEstudio } from '@/types/estudio'
+import type { EstudioEstadistica, EstadoEstudio } from '@/types/estudio'
 import type { Usuario } from '@/types/auth'
 
 export interface Kpi {
@@ -33,7 +33,7 @@ const ESTADOS: { clave: EstadoEstudio; etiqueta: string; color: string }[] = [
 // Más de ~7 categorías con color propio dejan de distinguirse.
 const MAX_BARRAS = 6
 
-function contarPor(estudios: Estudio[], clave: (e: Estudio) => string): Barra[] {
+function contarPor(estudios: EstudioEstadistica[], clave: (e: EstudioEstadistica) => string): Barra[] {
   const conteo = new Map<string, number>()
   for (const estudio of estudios) {
     const k = clave(estudio) || '—'
@@ -51,7 +51,7 @@ function contarPor(estudios: Estudio[], clave: (e: Estudio) => string): Barra[] 
   return [...visibles, { etiqueta: 'Otros', valor: resto }]
 }
 
-function porEstado(estudios: Estudio[]): Segmento[] {
+function porEstado(estudios: EstudioEstadistica[]): Segmento[] {
   return ESTADOS.map(({ clave, etiqueta, color }) => ({
     etiqueta,
     color,
@@ -59,7 +59,7 @@ function porEstado(estudios: Estudio[]): Segmento[] {
   }))
 }
 
-export function useEstadisticas(estudios: Ref<Estudio[]>, usuario: Ref<Usuario | null>) {
+export function useEstadisticas(estudios: Ref<EstudioEstadistica[]>, usuario: Ref<Usuario | null>) {
   const rol = computed(() => usuario.value?.rol ?? 'Tecnico')
   const mios = computed(() => estudios.value.filter((e) => e.subidoPorId === usuario.value?.id))
   const asignadosAMi = computed(() => estudios.value.filter((e) => e.radiologoAsignadoId === usuario.value?.id))
@@ -108,7 +108,7 @@ export function useEstadisticas(estudios: Ref<Estudio[]>, usuario: Ref<Usuario |
       },
       {
         etiqueta: 'Hospitales',
-        valor: new Set(estudios.value.map((e) => e.hospitalOrigen)).size,
+        valor: new Set(estudios.value.map((e) => e.hospitalNombre)).size,
         detalle: 'derivando estudios',
       },
     ]
@@ -131,7 +131,7 @@ export function useEstadisticas(estudios: Ref<Estudio[]>, usuario: Ref<Usuario |
   const barras = computed<Barra[]>(() => {
     if (rol.value === 'Radiologo') return contarPor(pendientes.value, (e) => e.modalidad)
     if (rol.value === 'Tecnico') return contarPor(mios.value, (e) => e.modalidad)
-    return contarPor(estudios.value, (e) => e.hospitalOrigen)
+    return contarPor(estudios.value, (e) => e.hospitalNombre)
   })
 
   const panelBarras = computed<Panel>(() => {

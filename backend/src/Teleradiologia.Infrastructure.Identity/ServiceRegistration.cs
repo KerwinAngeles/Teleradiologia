@@ -84,6 +84,24 @@ public static class ServiceRegistration
             ValidIssuer = supabase.Issuer,
         };
 
+        // El navegador no puede poner cabeceras en el handshake de WebSocket, así que el
+        // cliente de SignalR manda el token por query string. Solo se acepta en las rutas del hub.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = contexto =>
+            {
+                var token = contexto.Request.Query["access_token"];
+
+                if (!string.IsNullOrEmpty(token) &&
+                    contexto.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    contexto.Token = token;
+                }
+
+                return Task.CompletedTask;
+            },
+        };
+
         if (!string.IsNullOrWhiteSpace(supabase.JwksUrl))
         {
             options.TokenValidationParameters.ValidateIssuerSigningKey = true;

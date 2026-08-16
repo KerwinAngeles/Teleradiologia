@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ToastHost from '@/components/ToastHost.vue'
+import PantallaCarga from '@/components/PantallaCarga.vue'
 </script>
 
 <template>
@@ -12,4 +13,5 @@ import ToastHost from '@/components/ToastHost.vue'
   </div>
 
   <ToastHost />
+  <PantallaCarga />
 </template>

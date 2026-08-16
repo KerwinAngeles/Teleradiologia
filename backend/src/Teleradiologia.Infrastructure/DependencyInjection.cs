@@ -5,12 +5,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Teleradiologia.Application.Abstractions;
+using Teleradiologia.Application.Common;
 using Teleradiologia.Application.Interfaces.Repositories;
 using Teleradiologia.Infrastructure.Email;
 using Teleradiologia.Infrastructure.Health;
 using Teleradiologia.Infrastructure.Orthanc;
 using Teleradiologia.Infrastructure.Persistence;
 using Teleradiologia.Infrastructure.Repositories;
+using Teleradiologia.Infrastructure.Security;
 
 namespace Teleradiologia.Infrastructure;
 
@@ -26,11 +28,16 @@ public static class DependencyInjection
 
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+        services.AddScoped<IHospitalRepository, HospitalRepository>();
+        services.AddScoped<IEventoRepository, EventoRepository>();
+        services.AddScoped<INotificacionRepository, NotificacionRepository>();
         services.AddScoped<IPacienteRepository, PacienteRepository>();
         services.AddScoped<IEstudioRepository, EstudioRepository>();
         services.AddScoped<IInformeRepository, InformeRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IResumenActividadRepository, ResumenActividadRepository>();
+
+        services.Configure<SlaOptions>(configuration.GetSection(SlaOptions.SectionName));
 
         services.Configure<OrthancOptions>(configuration.GetSection(OrthancOptions.SectionName));
         services.AddHttpClient<IOrthancClient, OrthancClient>((serviceProvider, client) =>
@@ -41,6 +48,9 @@ public static class DependencyInjection
             var credenciales = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Username}:{options.Password}"));
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credenciales);
         });
+
+        services.Configure<FirmaOptions>(configuration.GetSection(FirmaOptions.SectionName));
+        services.AddSingleton<IFirmaDigitalService, FirmaDigitalService>();
 
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddScoped<IEmailSender, SmtpEmailSender>();

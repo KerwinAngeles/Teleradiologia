@@ -32,5 +32,11 @@ public class Usuario : AuditableBaseEntity
     [MaxLength(500)]
     public string? MotivoDecision { get; set; }
 
+    // Matrícula profesional del radiólogo: es lo que identifica al firmante en el informe.
+    [MaxLength(50)]
+    public string? Matricula { get; set; }
+
+    public ICollection<UsuarioHospital> Hospitales { get; set; } = [];
+
     public bool PuedeIniciarSesion => EstadoAcceso == EstadoAcceso.Aprobado;
 }

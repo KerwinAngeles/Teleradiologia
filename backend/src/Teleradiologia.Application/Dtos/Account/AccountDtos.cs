@@ -28,7 +28,8 @@ public record UsuarioDto(
     EstadoAcceso EstadoAcceso,
     DateTimeOffset CreatedAt,
     DateTimeOffset? FechaDecision,
-    string? MotivoDecision)
+    string? MotivoDecision,
+    string? Matricula)
 {
     public bool Activo => EstadoAcceso == EstadoAcceso.Aprobado;
 }

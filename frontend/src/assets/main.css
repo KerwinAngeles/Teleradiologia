@@ -10,16 +10,50 @@
   --color-ink-faint: #8b8697;
   --color-hairline: rgba(20, 19, 26, 0.08);
 
+  /* Superficies. Todo lo que cambia entre claro y oscuro sale de acá. */
+  --color-lienzo: #f4f1f6;
+  --color-vidrio: rgba(255, 255, 255, 0.66);
+  --color-vidrio-solido: rgba(255, 255, 255, 0.9);
+  --color-vidrio-borde: rgba(255, 255, 255, 0.75);
+  --color-vidrio-brillo: rgba(255, 255, 255, 0.9);
+  --color-campo: rgba(255, 255, 255, 0.72);
+  --color-campo-foco: #ffffff;
+  --color-borde: rgba(20, 19, 26, 0.12);
+  --color-borde-fuerte: rgba(20, 19, 26, 0.35);
+  --color-sombra: rgba(20, 19, 26, 0.35);
+  --color-superficie-suave: rgba(255, 255, 255, 0.7);
+  /* Texto sobre .btn-ink: acompaña a --color-ink cuando se invierte. */
+  --color-sobre-tinta: #ffffff;
+  --fluting-linea: rgba(255, 255, 255, 0.55);
+  --opacidad-ruido: 0.5;
+
   /* Aurora */
   --color-coral: #ffb9a3;
   --color-lilac: #cbb9ff;
   --color-aqua: #a5e8dd;
+  --aurora-1: rgba(255, 185, 163, 0.85);
+  --aurora-2: rgba(165, 232, 221, 0.9);
+  --aurora-3: rgba(203, 185, 255, 0.7);
+  --aurora-4: rgba(255, 226, 205, 0.6);
+
+  /* Chips de estado: en oscuro el pastel no contrasta, así que se tiñen aparte. */
+  --chip-pendiente-bg: rgba(255, 202, 158, 0.45);
+  --chip-pendiente-borde: rgba(184, 114, 47, 0.25);
+  --chip-informe-bg: rgba(184, 205, 255, 0.45);
+  --chip-informe-borde: rgba(61, 99, 184, 0.25);
+  --chip-informado-bg: rgba(165, 232, 221, 0.5);
+  --chip-informado-borde: rgba(31, 138, 109, 0.25);
+  --chip-neutro-bg: rgba(20, 19, 26, 0.06);
+  --chip-neutro-borde: rgba(20, 19, 26, 0.1);
 
   /* Estados clínicos: chips y paleta categórica. Separación tritan 6.5, por eso
      los gráficos siempre llevan leyenda y no dependen solo del color. */
   --color-estado-pendiente: #b8722f;
   --color-estado-informe: #3d63b8;
   --color-estado-informado: #1f8a6d;
+  --color-estado-stat: #c0392b;
+  --chip-stat-bg: rgba(224, 122, 108, 0.28);
+  --chip-stat-borde: rgba(192, 57, 43, 0.3);
 
   /* Serie única de las barras: la longitud ya codifica el valor. */
   --color-viz-serie: #2a78d6;
@@ -30,11 +64,11 @@
 @layer base {
   /* Mismo tono que la aurora: evita la franja al hacer overscroll. */
   html {
-    background: #f4f1f6;
+    background: var(--color-lienzo);
   }
 
   body {
-    background: #f4f1f6;
+    background: var(--color-lienzo);
     color: var(--color-ink);
     -webkit-font-smoothing: antialiased;
   }
@@ -50,12 +84,12 @@
   .aurora {
     position: relative;
     isolation: isolate;
-    background-color: #f4f1f6;
+    background-color: var(--color-lienzo);
     background-image:
-      radial-gradient(65% 55% at 8% 12%, rgba(255, 185, 163, 0.85) 0%, rgba(255, 185, 163, 0) 60%),
-      radial-gradient(55% 60% at 95% 8%, rgba(165, 232, 221, 0.9) 0%, rgba(165, 232, 221, 0) 62%),
-      radial-gradient(70% 70% at 70% 100%, rgba(203, 185, 255, 0.7) 0%, rgba(203, 185, 255, 0) 65%),
-      radial-gradient(45% 45% at 30% 85%, rgba(255, 226, 205, 0.6) 0%, rgba(255, 226, 205, 0) 70%);
+      radial-gradient(65% 55% at 8% 12%, var(--aurora-1) 0%, transparent 60%),
+      radial-gradient(55% 60% at 95% 8%, var(--aurora-2) 0%, transparent 62%),
+      radial-gradient(70% 70% at 70% 100%, var(--aurora-3) 0%, transparent 65%),
+      radial-gradient(45% 45% at 30% 85%, var(--aurora-4) 0%, transparent 70%);
   }
 
   /* Ruido: evita el banding de los degradados. */
@@ -65,7 +99,7 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    opacity: 0.5;
+    opacity: var(--opacidad-ruido);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
   }
 
@@ -73,30 +107,30 @@
   .fluting {
     background-image: repeating-linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.55) 0px,
-      rgba(255, 255, 255, 0.55) 1px,
-      rgba(255, 255, 255, 0.14) 2px,
-      rgba(255, 255, 255, 0) 11px,
-      rgba(255, 255, 255, 0) 22px
+      var(--fluting-linea) 0px,
+      var(--fluting-linea) 1px,
+      color-mix(in srgb, var(--fluting-linea) 25%, transparent) 2px,
+      transparent 11px,
+      transparent 22px
     );
   }
 
   .glass {
-    background: rgba(255, 255, 255, 0.66);
+    background: var(--color-vidrio);
     backdrop-filter: blur(22px) saturate(150%);
-    border: 1px solid rgba(255, 255, 255, 0.75);
+    border: 1px solid var(--color-vidrio-borde);
     border-radius: var(--radius-card);
     box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
-      0 18px 40px -24px rgba(20, 19, 26, 0.35);
+      0 1px 0 0 var(--color-vidrio-brillo) inset,
+      0 18px 40px -24px var(--color-sombra);
   }
 
   .glass-solid {
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--color-vidrio-solido);
     backdrop-filter: blur(22px) saturate(150%);
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--color-vidrio-borde);
     border-radius: var(--radius-card);
-    box-shadow: 0 18px 40px -26px rgba(20, 19, 26, 0.4);
+    box-shadow: 0 18px 40px -26px var(--color-sombra);
   }
 
   /* Micro-etiqueta en versalitas */
@@ -131,8 +165,8 @@
   .field {
     width: 100%;
     border-radius: 0.85rem;
-    border: 1px solid rgba(20, 19, 26, 0.12);
-    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--color-borde);
+    background: var(--color-campo);
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
     color: var(--color-ink);
@@ -148,8 +182,8 @@
 
   .field:focus {
     outline: none;
-    background: #fff;
-    border-color: rgba(20, 19, 26, 0.35);
+    background: var(--color-campo-foco);
+    border-color: var(--color-borde-fuerte);
     box-shadow: 0 0 0 3px rgba(203, 185, 255, 0.45);
   }
 
@@ -164,17 +198,17 @@
     padding: 0.625rem 1.35rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #fff;
+    color: var(--color-sobre-tinta);
     transition:
       transform 0.15s ease,
       box-shadow 0.15s ease,
       opacity 0.15s ease;
-    box-shadow: 0 12px 24px -14px rgba(20, 19, 26, 0.9);
+    box-shadow: 0 12px 24px -14px var(--color-sombra);
   }
 
   .btn-ink:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 16px 28px -14px rgba(20, 19, 26, 0.95);
+    box-shadow: 0 16px 28px -14px var(--color-sombra);
   }
 
   .btn-ink:disabled {
@@ -188,8 +222,8 @@
     justify-content: center;
     gap: 0.5rem;
     border-radius: 999px;
-    border: 1px solid rgba(20, 19, 26, 0.14);
-    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--color-borde);
+    background: var(--color-campo);
     padding: 0.625rem 1.35rem;
     font-size: 0.875rem;
     font-weight: 500;
@@ -200,12 +234,36 @@
   }
 
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: rgba(20, 19, 26, 0.28);
+    background: var(--color-superficie-suave);
+    border-color: var(--color-borde-fuerte);
   }
 
   .btn-ghost:disabled {
     opacity: 0.45;
+  }
+
+  .nav-enlace {
+    border-radius: 999px;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-ink-soft);
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .nav-enlace:hover {
+    background: var(--color-superficie-suave);
+    color: var(--color-ink);
+  }
+
+  /* El texto sale de --color-sobre-tinta, no de blanco fijo: en oscuro el fondo se
+     aclara y un texto blanco quedaría ilegible. */
+  .nav-enlace-activo,
+  .nav-enlace-activo:hover {
+    background: var(--color-ink);
+    color: var(--color-sobre-tinta);
   }
 
   /* Botón circular de "ir a" */
@@ -217,8 +275,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    border: 1px solid rgba(20, 19, 26, 0.12);
-    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--color-borde);
+    background: var(--color-superficie-suave);
     color: var(--color-ink);
     transition:
       background 0.15s ease,
@@ -227,7 +285,7 @@
 
   .btn-orb:hover {
     background: var(--color-ink);
-    color: #fff;
+    color: var(--color-sobre-tinta);
     transform: translateY(-1px);
   }
 
@@ -253,27 +311,45 @@
   }
 
   .chip-pendiente {
-    background: rgba(255, 202, 158, 0.45);
-    border-color: rgba(184, 114, 47, 0.25);
+    background: var(--chip-pendiente-bg);
+    border-color: var(--chip-pendiente-borde);
     color: var(--color-estado-pendiente);
   }
 
   .chip-informe {
-    background: rgba(184, 205, 255, 0.45);
-    border-color: rgba(61, 99, 184, 0.25);
+    background: var(--chip-informe-bg);
+    border-color: var(--chip-informe-borde);
     color: var(--color-estado-informe);
   }
 
   .chip-informado {
-    background: rgba(165, 232, 221, 0.5);
-    border-color: rgba(31, 138, 109, 0.25);
+    background: var(--chip-informado-bg);
+    border-color: var(--chip-informado-borde);
     color: var(--color-estado-informado);
   }
 
   .chip-neutro {
-    background: rgba(20, 19, 26, 0.06);
-    border-color: rgba(20, 19, 26, 0.1);
+    background: var(--chip-neutro-bg);
+    border-color: var(--chip-neutro-borde);
     color: var(--color-ink-soft);
+  }
+
+  .chip-stat {
+    background: var(--chip-stat-bg);
+    border-color: var(--chip-stat-borde);
+    color: var(--color-estado-stat);
+  }
+
+  .chip-urgente {
+    background: var(--chip-pendiente-bg);
+    border-color: var(--chip-pendiente-borde);
+    color: var(--color-estado-pendiente);
+  }
+
+  .chip-vencido {
+    background: var(--chip-stat-bg);
+    border-color: var(--chip-stat-borde);
+    color: var(--color-estado-stat);
   }
 
   /* Anillo del avatar */
@@ -293,7 +369,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    background: #fff;
+    background: var(--color-lienzo);
     color: var(--color-ink);
   }
 }
@@ -405,6 +481,31 @@
     transform: translate3d(0, 12px, 0) scale(0.98);
   }
 
+  /* Cambio de icono del botón de tema */
+  .tema-icono-enter-active,
+  .tema-icono-leave-active {
+    transition:
+      opacity 0.16s ease,
+      transform 0.16s ease;
+  }
+
+  .tema-icono-enter-from,
+  .tema-icono-leave-to {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.7);
+  }
+
+  /* Pantalla de carga entre navegaciones */
+  .carga-enter-active,
+  .carga-leave-active {
+    transition: opacity 0.2s ease;
+  }
+
+  .carga-enter-from,
+  .carga-leave-to {
+    opacity: 0;
+  }
+
   /* Entrada escalonada de los hijos directos */
   .stagger > * {
     animation: rise 0.5s cubic-bezier(0.22, 0.9, 0.28, 1) backwards;
@@ -508,7 +609,9 @@
     .toast-leave-active,
     .toast-move,
     .modal-enter-active,
-    .modal-leave-active {
+    .modal-leave-active,
+    .carga-enter-active,
+    .carga-leave-active {
       transition-duration: 0.12s;
     }
 
@@ -524,6 +627,113 @@
     .modal-leave-to .glass-solid {
       transform: none;
       filter: none;
+    }
+  }
+}
+
+/* Tema oscuro. Para un visor de radiología no es decoración: los estudios se leen en salas
+   a oscuras y un marco claro alrededor de una imagen en grises falsea la percepción.
+   Los valores se definen una sola vez y se aplican por [data-theme] o por preferencia del SO. */
+@layer base {
+  :root[data-theme='oscuro'],
+  :root:not([data-theme='claro']) {
+    color-scheme: light;
+  }
+
+  :root[data-theme='oscuro'] {
+    color-scheme: dark;
+
+    --color-ink: #ece9f2;
+    --color-ink-soft: #a9a4b8;
+    --color-ink-faint: #7c7690;
+    --color-hairline: rgba(255, 255, 255, 0.09);
+
+    --color-lienzo: #0d0c11;
+    --color-vidrio: rgba(30, 28, 38, 0.62);
+    --color-vidrio-solido: rgba(25, 23, 32, 0.94);
+    --color-vidrio-borde: rgba(255, 255, 255, 0.08);
+    --color-vidrio-brillo: rgba(255, 255, 255, 0.05);
+    --color-campo: rgba(255, 255, 255, 0.05);
+    --color-campo-foco: rgba(255, 255, 255, 0.09);
+    --color-borde: rgba(255, 255, 255, 0.12);
+    --color-borde-fuerte: rgba(255, 255, 255, 0.32);
+    --color-sombra: rgba(0, 0, 0, 0.7);
+    --color-superficie-suave: rgba(255, 255, 255, 0.08);
+    --color-sobre-tinta: #14131a;
+    --fluting-linea: rgba(255, 255, 255, 0.07);
+    --opacidad-ruido: 0.25;
+
+    /* La aurora baja a un resplandor: a plena opacidad iluminaría toda la pantalla. */
+    --aurora-1: rgba(255, 140, 110, 0.16);
+    --aurora-2: rgba(110, 220, 205, 0.14);
+    --aurora-3: rgba(160, 130, 255, 0.2);
+    --aurora-4: rgba(255, 200, 170, 0.07);
+
+    /* Los estados suben de luminosidad para mantener el contraste sobre el vidrio oscuro. */
+    --color-estado-pendiente: #f0a55c;
+    --color-estado-informe: #8fb2ff;
+    --color-estado-informado: #5fd6b4;
+    --color-estado-stat: #ff8577;
+    --chip-stat-bg: rgba(255, 133, 119, 0.16);
+    --chip-stat-borde: rgba(255, 133, 119, 0.32);
+    --color-viz-serie: #6aa8f0;
+
+    --chip-pendiente-bg: rgba(240, 165, 92, 0.16);
+    --chip-pendiente-borde: rgba(240, 165, 92, 0.3);
+    --chip-informe-bg: rgba(143, 178, 255, 0.16);
+    --chip-informe-borde: rgba(143, 178, 255, 0.3);
+    --chip-informado-bg: rgba(95, 214, 180, 0.16);
+    --chip-informado-borde: rgba(95, 214, 180, 0.3);
+    --chip-neutro-bg: rgba(255, 255, 255, 0.07);
+    --chip-neutro-borde: rgba(255, 255, 255, 0.12);
+  }
+
+  /* Sin elección explícita se sigue al sistema. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='claro']) {
+      color-scheme: dark;
+
+      --color-ink: #ece9f2;
+      --color-ink-soft: #a9a4b8;
+      --color-ink-faint: #7c7690;
+      --color-hairline: rgba(255, 255, 255, 0.09);
+
+      --color-lienzo: #0d0c11;
+      --color-vidrio: rgba(30, 28, 38, 0.62);
+      --color-vidrio-solido: rgba(25, 23, 32, 0.94);
+      --color-vidrio-borde: rgba(255, 255, 255, 0.08);
+      --color-vidrio-brillo: rgba(255, 255, 255, 0.05);
+      --color-campo: rgba(255, 255, 255, 0.05);
+      --color-campo-foco: rgba(255, 255, 255, 0.09);
+      --color-borde: rgba(255, 255, 255, 0.12);
+      --color-borde-fuerte: rgba(255, 255, 255, 0.32);
+      --color-sombra: rgba(0, 0, 0, 0.7);
+      --color-superficie-suave: rgba(255, 255, 255, 0.08);
+      --color-sobre-tinta: #14131a;
+      --fluting-linea: rgba(255, 255, 255, 0.07);
+      --opacidad-ruido: 0.25;
+
+      --aurora-1: rgba(255, 140, 110, 0.16);
+      --aurora-2: rgba(110, 220, 205, 0.14);
+      --aurora-3: rgba(160, 130, 255, 0.2);
+      --aurora-4: rgba(255, 200, 170, 0.07);
+
+      --color-estado-pendiente: #f0a55c;
+      --color-estado-informe: #8fb2ff;
+      --color-estado-informado: #5fd6b4;
+      --color-estado-stat: #ff8577;
+      --chip-stat-bg: rgba(255, 133, 119, 0.16);
+      --chip-stat-borde: rgba(255, 133, 119, 0.32);
+      --color-viz-serie: #6aa8f0;
+
+      --chip-pendiente-bg: rgba(240, 165, 92, 0.16);
+      --chip-pendiente-borde: rgba(240, 165, 92, 0.3);
+      --chip-informe-bg: rgba(143, 178, 255, 0.16);
+      --chip-informe-borde: rgba(143, 178, 255, 0.3);
+      --chip-informado-bg: rgba(95, 214, 180, 0.16);
+      --chip-informado-borde: rgba(95, 214, 180, 0.3);
+      --chip-neutro-bg: rgba(255, 255, 255, 0.07);
+      --chip-neutro-borde: rgba(255, 255, 255, 0.12);
     }
   }
 }

@@ -133,10 +133,12 @@ public class AccountService(
             : BaseResponse<UsuarioDto>.Success(mapper.Map<UsuarioDto>(usuario));
     }
 
-    public async Task<BaseResponse<List<UsuarioDto>>> ListarAsync(EstadoAcceso? estado, CancellationToken ct)
+    public async Task<BaseResponse<PagedResult<UsuarioDto>>> BuscarAsync(FiltroUsuarios filtro, CancellationToken ct)
     {
-        var usuarios = await usuarioRepository.GetByEstadoAsync(estado, ct);
-        return BaseResponse<List<UsuarioDto>>.Success(mapper.Map<List<UsuarioDto>>(usuarios));
+        var pagina = await usuarioRepository.BuscarAsync(filtro, ct);
+
+        return BaseResponse<PagedResult<UsuarioDto>>.Success(new PagedResult<UsuarioDto>(
+            mapper.Map<List<UsuarioDto>>(pagina.Items), pagina.PageNumber, pagina.PageSize, pagina.TotalCount));
     }
 
     public Task<BaseResponse<UsuarioDto>> AprobarAsync(Guid usuarioId, AprobarUsuarioRequest request, Guid adminId, CancellationToken ct) =>

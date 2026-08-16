@@ -68,6 +68,11 @@ public class UsuarioClaimsTransformation(
         identidad.AddClaim(new Claim(ClaimTypes.Name, usuario.NombreCompleto));
         identidad.AddClaim(new Claim(ClaimTypes.Role, usuario.Rol.ToString()));
 
+        foreach (var habilitacion in usuario.Hospitales)
+        {
+            identidad.AddClaim(new Claim(ClaimsLocales.HospitalId, habilitacion.HospitalId.ToString()));
+        }
+
         return new ClaimsPrincipal(identidad);
     }
 }

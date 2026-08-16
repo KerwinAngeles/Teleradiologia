@@ -1,15 +1,19 @@
+using Teleradiologia.Application.Common;
+using Teleradiologia.Application.Estudios;
 using Teleradiologia.Domain.Entities;
-using Teleradiologia.Domain.Enums;
 
 namespace Teleradiologia.Application.Abstractions;
 
 public interface IEstudioRepository
 {
-    Task<Estudio?> GetByStudyInstanceUidAsync(string studyInstanceUid, CancellationToken ct);
+    // Acotado al hospital: el mismo estudio en otro hospital es otro registro, no un duplicado.
+    Task<Estudio?> GetExistenteAsync(Guid hospitalId, string orthancStudyId, string studyInstanceUid, CancellationToken ct);
 
     Task<Estudio?> GetByIdAsync(Guid id, CancellationToken ct);
 
-    Task<IReadOnlyList<Estudio>> GetAllAsync(EstadoEstudio? estado, Guid? radiologoAsignadoId, CancellationToken ct);
+    Task<PagedResult<Estudio>> BuscarAsync(FiltroEstudios filtro, CancellationToken ct);
+
+    Task<List<EstudioEstadisticaDto>> ProyectarEstadisticasAsync(CancellationToken ct);
 
     void Add(Estudio estudio);
 }

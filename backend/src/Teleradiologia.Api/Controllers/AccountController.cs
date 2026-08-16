@@ -29,8 +29,8 @@ public class AccountController(IAccountService accountService) : BaseApiControll
 public class UsuariosController(IAccountService accountService) : BaseApiController
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] EstadoAcceso? estado, CancellationToken ct) =>
-        Resultado(await accountService.ListarAsync(estado, ct));
+    public async Task<IActionResult> GetAll([FromQuery] FiltroUsuarios filtro, CancellationToken ct) =>
+        Resultado(await accountService.BuscarAsync(filtro, ct));
 
     [HttpPost("{id:guid}/aprobar")]
     public async Task<IActionResult> Aprobar(Guid id, AprobarUsuarioRequest request, CancellationToken ct) =>

@@ -23,12 +23,22 @@ public class Estudio : AuditableBaseEntity
     [MaxLength(500)]
     public string? DescripcionEstudio { get; set; }
 
-    [Required, MaxLength(200)]
-    public string HospitalOrigen { get; set; } = string.Empty;
+    public Guid HospitalId { get; set; }
+    public Hospital Hospital { get; set; } = null!;
 
     public DateTimeOffset FechaEstudio { get; set; }
 
     public EstadoEstudio Estado { get; set; } = EstadoEstudio.Pendiente;
+
+    public PrioridadEstudio Prioridad { get; set; } = PrioridadEstudio.Rutina;
+
+    // Se fija al recibir el estudio y no se recalcula: un cambio de contrato no mueve
+    // el plazo de lo que ya entró.
+    public DateTimeOffset FechaLimite { get; set; }
+
+    public DateTimeOffset? AsignadoAt { get; set; }
+
+    public DateTimeOffset? InformadoAt { get; set; }
 
     public Guid? RadiologoAsignadoId { get; set; }
 

@@ -13,11 +13,19 @@ namespace Teleradiologia.Api.Controllers;
 public class EstudiosController(IEstudioService estudioService, IInformeService informeService) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] EstadoEstudio? estado, [FromQuery] bool asignadoAMi, CancellationToken ct)
+    public async Task<IActionResult> GetAll([FromQuery] FiltroEstudios filtro, CancellationToken ct)
     {
-        Guid? radiologoFiltro = asignadoAMi ? ObtenerUsuarioId() : null;
-        return Ok(await estudioService.GetAllAsync(estado, radiologoFiltro, ct));
+        // `asignadoAMi` se resuelve acá: el filtro no debe poder pedir los de otro radiólogo.
+        var aplicado = filtro.AsignadoAMi
+            ? filtro with { RadiologoAsignadoId = ObtenerUsuarioId() }
+            : filtro with { RadiologoAsignadoId = null };
+
+        return Ok(await estudioService.BuscarAsync(aplicado, ct));
     }
+
+    [HttpGet("estadisticas")]
+    public async Task<IActionResult> Estadisticas(CancellationToken ct) =>
+        Ok(await estudioService.ObtenerEstadisticasAsync(ct));
 
     [HttpPost]
     [Authorize(Roles = $"{nameof(RolUsuario.Tecnico)},{nameof(RolUsuario.Admin)}")]
@@ -34,7 +42,7 @@ public class EstudiosController(IEstudioService estudioService, IInformeService 
         }
 
         var resultado = await estudioService.SubirEstudioAsync(
-            new SubirEstudioRequest(archivos, form.HospitalOrigen, ObtenerUsuarioId()), ct);
+            new SubirEstudioRequest(archivos, form.HospitalId, form.Prioridad, ObtenerUsuarioId()), ct);
 
         return resultado.CreadoAhora
             ? CreatedAtAction(nameof(GetAll), resultado.Estudio)

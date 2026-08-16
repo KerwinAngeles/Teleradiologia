@@ -1,4 +1,4 @@
-using Teleradiologia.Domain.Enums;
+using Teleradiologia.Application.Common;
 
 namespace Teleradiologia.Application.Estudios;
 
@@ -6,7 +6,9 @@ public interface IEstudioService
 {
     Task<SubirEstudioResultado> SubirEstudioAsync(SubirEstudioRequest request, CancellationToken ct);
 
-    Task<IReadOnlyList<EstudioResponse>> GetAllAsync(EstadoEstudio? estado, Guid? soloAsignadosAUsuario, CancellationToken ct);
+    Task<PagedResult<EstudioResponse>> BuscarAsync(FiltroEstudios filtro, CancellationToken ct);
+
+    Task<IReadOnlyList<EstudioEstadisticaDto>> ObtenerEstadisticasAsync(CancellationToken ct);
 
     Task<EstudioResponse> TomarEstudioAsync(Guid estudioId, Guid radiologoId, CancellationToken ct);
 

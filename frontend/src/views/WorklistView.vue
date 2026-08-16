@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -7,22 +7,64 @@ import { useEstadisticas } from '@/composables/useEstadisticas'
 import TarjetaGrafico from '@/components/charts/TarjetaGrafico.vue'
 import GraficoBarras from '@/components/charts/GraficoBarras.vue'
 import GraficoDona from '@/components/charts/GraficoDona.vue'
-import type { Estudio } from '@/types/estudio'
+import { useReloj, formatearRestante } from '@/composables/useReloj'
+import { useDebounce } from '@/composables/useDebounce'
+import Paginacion from '@/components/Paginacion.vue'
+import type { Estudio, EstudioEstadistica, EstadoEstudio, EstadoSla, PrioridadEstudio } from '@/types/estudio'
+import type { PagedResult } from '@/types/pagina'
+
+const { ahora } = useReloj()
 
 const auth = useAuthStore()
 const toasts = useToastStore()
 
 const estudios = ref<Estudio[]>([])
+const estadisticas = ref<EstudioEstadistica[]>([])
 const cargando = ref(true)
 const error = ref<string | null>(null)
 const tomando = ref<string | null>(null)
+
+const pagina = ref(1)
+const tamanoPagina = ref(20)
+const total = ref(0)
+
+const fEstado = ref<EstadoEstudio | ''>('')
+const fPrioridad = ref<PrioridadEstudio | ''>('')
+const fTexto = ref('')
+const fVencidos = ref(false)
+const fAsignadoAMi = ref(false)
+
+const textoDebounced = useDebounce(fTexto)
+
+const hayFiltros = computed(
+  () => !!fEstado.value || !!fPrioridad.value || !!fTexto.value || fVencidos.value || fAsignadoAMi.value,
+)
+
+function limpiarFiltros() {
+  fEstado.value = ''
+  fPrioridad.value = ''
+  fTexto.value = ''
+  fVencidos.value = false
+  fAsignadoAMi.value = false
+}
 
 async function cargar() {
   cargando.value = true
   error.value = null
   try {
-    const { data } = await api.get<Estudio[]>('/estudios')
-    estudios.value = data
+    const { data } = await api.get<PagedResult<Estudio>>('/estudios', {
+      params: {
+        pageNumber: pagina.value,
+        pageSize: tamanoPagina.value,
+        estado: fEstado.value || undefined,
+        prioridad: fPrioridad.value || undefined,
+        texto: textoDebounced.value.trim() || undefined,
+        soloVencidos: fVencidos.value || undefined,
+        asignadoAMi: fAsignadoAMi.value || undefined,
+      },
+    })
+    estudios.value = data.items
+    total.value = data.totalCount
   } catch {
     error.value = 'No se pudieron cargar los estudios.'
   } finally {
@@ -30,12 +72,33 @@ async function cargar() {
   }
 }
 
-onMounted(cargar)
+// Los KPIs y gráficos van sobre el total, no sobre la página: se piden aparte.
+async function cargarEstadisticas() {
+  try {
+    const { data } = await api.get<EstudioEstadistica[]>('/estudios/estadisticas')
+    estadisticas.value = data
+  } catch {
+    estadisticas.value = []
+  }
+}
+
+// Cualquier filtro nuevo vuelve a la primera página: si no, se cae en una vacía.
+watch([fEstado, fPrioridad, textoDebounced, fVencidos, fAsignadoAMi], () => {
+  pagina.value = 1
+  cargar()
+})
+
+watch(pagina, cargar)
+
+onMounted(() => {
+  cargar()
+  cargarEstadisticas()
+})
 
 const esRadiologo = computed(() => auth.usuario?.rol === 'Radiologo')
 
 const usuario = computed(() => auth.usuario)
-const { kpis, dona, panelDona, barras, panelBarras } = useEstadisticas(estudios, usuario)
+const { kpis, dona, panelDona, barras, panelBarras } = useEstadisticas(estadisticas, usuario)
 
 async function tomar(id: string) {
   const estudio = estudios.value.find((e) => e.id === id)
@@ -43,7 +106,7 @@ async function tomar(id: string) {
   error.value = null
   try {
     await api.post(`/estudios/${id}/tomar`)
-    await cargar()
+    await Promise.all([cargar(), cargarEstadisticas()])
     toasts.exito(`Tomaste el estudio de ${estudio?.pacienteNombre ?? 'paciente'}. Ya podés informarlo.`)
   } catch {
     const mensaje = 'No se pudo tomar el estudio — puede que otro radiólogo ya lo haya tomado.'
@@ -52,6 +115,25 @@ async function tomar(id: string) {
   } finally {
     tomando.value = null
   }
+}
+
+const prioridadChip: Record<PrioridadEstudio, string> = {
+  Stat: 'chip-stat',
+  Urgente: 'chip-urgente',
+  Rutina: 'chip-neutro',
+}
+const prioridadLabel: Record<PrioridadEstudio, string> = {
+  Stat: 'STAT',
+  Urgente: 'Urgente',
+  Rutina: 'Rutina',
+}
+
+const slaChip: Record<EstadoSla, string> = {
+  EnPlazo: 'chip-informado',
+  PorVencer: 'chip-pendiente',
+  Vencido: 'chip-vencido',
+  Cumplido: 'chip-informado',
+  Incumplido: 'chip-vencido',
 }
 
 const estadoChip: Record<Estudio['estado'], string> = {
@@ -78,7 +160,7 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
         <h1 class="display mt-1.5 text-3xl sm:text-4xl">Worklist</h1>
       </div>
       <p class="text-ink-soft text-sm">
-        {{ estudios.length }} estudio{{ estudios.length === 1 ? '' : 's' }} en la plataforma
+        {{ total }} estudio{{ total === 1 ? '' : 's' }}{{ hayFiltros ? ' con estos filtros' : ' en la plataforma' }}
       </p>
     </div>
 
@@ -106,6 +188,58 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
       </TarjetaGrafico>
     </div>
 
+    <div class="glass flex flex-wrap items-center gap-3 p-4">
+      <div class="relative min-w-[220px] flex-1">
+        <svg
+          class="text-ink-faint pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.6"
+          stroke="currentColor"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        </svg>
+        <input v-model="fTexto" type="search" placeholder="Paciente o documento…" class="field !pl-10" />
+      </div>
+
+      <select v-model="fEstado" class="field !w-auto">
+        <option value="">Todos los estados</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="EnInforme">En informe</option>
+        <option value="Informado">Informado</option>
+      </select>
+
+      <select v-model="fPrioridad" class="field !w-auto">
+        <option value="">Toda prioridad</option>
+        <option value="Stat">STAT</option>
+        <option value="Urgente">Urgente</option>
+        <option value="Rutina">Rutina</option>
+      </select>
+
+      <button
+        type="button"
+        class="chip"
+        :class="fVencidos ? 'chip-vencido' : 'chip-neutro'"
+        @click="fVencidos = !fVencidos"
+      >
+        Fuera de plazo
+      </button>
+
+      <button
+        v-if="esRadiologo"
+        type="button"
+        class="chip"
+        :class="fAsignadoAMi ? 'chip-informe' : 'chip-neutro'"
+        @click="fAsignadoAMi = !fAsignadoAMi"
+      >
+        Asignados a mí
+      </button>
+
+      <button v-if="hayFiltros" type="button" class="btn-ghost !px-3.5 !py-1.5 !text-xs" @click="limpiarFiltros">
+        Limpiar
+      </button>
+    </div>
+
     <div class="glass overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full">
@@ -115,6 +249,8 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
               <th class="meta-label px-5 py-3.5 text-left font-semibold">Modalidad</th>
               <th class="meta-label px-5 py-3.5 text-left font-semibold">Hospital</th>
               <th class="meta-label px-5 py-3.5 text-left font-semibold">Fecha</th>
+              <th class="meta-label px-5 py-3.5 text-left font-semibold">Prioridad</th>
+              <th class="meta-label px-5 py-3.5 text-left font-semibold">Plazo</th>
               <th class="meta-label px-5 py-3.5 text-left font-semibold">Estado</th>
               <th class="meta-label px-5 py-3.5 text-left font-semibold">Radiólogo</th>
               <th class="px-5 py-3.5"></th>
@@ -131,9 +267,19 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
                 <p class="text-ink-faint text-xs">{{ estudio.pacienteDocumento }}</p>
               </td>
               <td class="text-ink-soft px-5 py-3.5 text-sm">{{ estudio.modalidad }}</td>
-              <td class="text-ink-soft px-5 py-3.5 text-sm">{{ estudio.hospitalOrigen }}</td>
+              <td class="text-ink-soft px-5 py-3.5 text-sm">{{ estudio.hospitalNombre }}</td>
               <td class="text-ink-soft px-5 py-3.5 text-sm tabular-nums">
                 {{ formatoFecha.format(new Date(estudio.fechaEstudio)) }}
+              </td>
+              <td class="px-5 py-3.5">
+                <span class="chip" :class="prioridadChip[estudio.prioridad]">
+                  {{ prioridadLabel[estudio.prioridad] }}
+                </span>
+              </td>
+              <td class="px-5 py-3.5">
+                <span class="chip" :class="slaChip[estudio.estadoSla]">
+                  {{ estudio.estadoSla === 'Cumplido' ? 'A tiempo' : estudio.estadoSla === 'Incumplido' ? 'Fuera de plazo' : formatearRestante(estudio.fechaLimite, ahora) }}
+                </span>
               </td>
               <td class="px-5 py-3.5">
                 <span class="chip" :class="estadoChip[estudio.estado]">{{ estadoLabel[estudio.estado] }}</span>
@@ -159,14 +305,21 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
               </td>
             </tr>
             <tr v-if="cargando">
-              <td colspan="7" class="text-ink-faint px-5 py-12 text-center text-sm">Cargando estudios…</td>
+              <td colspan="9" class="text-ink-faint px-5 py-12 text-center text-sm">Cargando estudios…</td>
             </tr>
             <tr v-else-if="estudios.length === 0">
-              <td colspan="7" class="text-ink-faint px-5 py-12 text-center text-sm">No hay estudios todavía.</td>
+              <td colspan="9" class="text-ink-faint px-5 py-12 text-center text-sm">{{ hayFiltros ? "Ningún estudio coincide con los filtros." : "No hay estudios todavía." }}</td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <Paginacion
+        :pagina="pagina"
+        :tamano-pagina="tamanoPagina"
+        :total="total"
+        @cambiar="(p) => (pagina = p)"
+      />
     </div>
 
     <p v-if="error" class="text-sm text-red-700">{{ error }}</p>

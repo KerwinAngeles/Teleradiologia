@@ -8,6 +8,9 @@ public class Paciente : AuditableBaseEntity
 {
     public Guid Id { get; set; }
 
+    public Guid HospitalId { get; set; }
+    public Hospital Hospital { get; set; } = null!;
+
     [Required, MaxLength(200)]
     public string NombreCompleto { get; set; } = string.Empty;
 

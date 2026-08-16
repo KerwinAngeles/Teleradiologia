@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { isAxiosError } from 'axios'
 import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import Paginacion from '@/components/Paginacion.vue'
+import { useDebounce } from '@/composables/useDebounce'
 import type { EstadoAcceso, Rol, Usuario } from '@/types/auth'
+import type { PagedResult } from '@/types/pagina'
 
 const auth = useAuthStore()
 const toasts = useToastStore()
@@ -16,6 +19,14 @@ const error = ref<string | null>(null)
 const procesando = ref<string | null>(null)
 
 const filtro = ref<EstadoAcceso | 'Todos'>('Todos')
+const fRol = ref<Rol | ''>('')
+const fTexto = ref('')
+const textoDebounced = useDebounce(fTexto)
+
+const pagina = ref(1)
+const tamanoPagina = ref(20)
+const total = ref(0)
+const pendientes = ref(0)
 
 const aprobando = ref<Usuario | null>(null)
 const rolElegido = ref<Rol>('Radiologo')
@@ -27,8 +38,17 @@ async function cargar() {
   cargando.value = true
   error.value = null
   try {
-    const { data } = await api.get<Usuario[]>('/usuarios')
-    usuarios.value = data
+    const { data } = await api.get<PagedResult<Usuario>>('/usuarios', {
+      params: {
+        pageNumber: pagina.value,
+        pageSize: tamanoPagina.value,
+        estado: filtro.value === 'Todos' ? undefined : filtro.value,
+        rol: fRol.value || undefined,
+        texto: textoDebounced.value.trim() || undefined,
+      },
+    })
+    usuarios.value = data.items
+    total.value = data.totalCount
   } catch {
     error.value = 'No se pudieron cargar los usuarios.'
   } finally {
@@ -36,13 +56,31 @@ async function cargar() {
   }
 }
 
-onMounted(cargar)
+// El contador de pendientes es del total, no de la página visible.
+async function cargarPendientes() {
+  try {
+    const { data } = await api.get<PagedResult<Usuario>>('/usuarios', {
+      params: { estado: 'Pendiente', pageSize: 1 },
+    })
+    pendientes.value = data.totalCount
+  } catch {
+    pendientes.value = 0
+  }
+}
 
-const visibles = computed(() =>
-  filtro.value === 'Todos' ? usuarios.value : usuarios.value.filter((u) => u.estadoAcceso === filtro.value),
-)
+watch([filtro, fRol, textoDebounced], () => {
+  pagina.value = 1
+  cargar()
+})
 
-const pendientes = computed(() => usuarios.value.filter((u) => u.estadoAcceso === 'Pendiente').length)
+watch(pagina, cargar)
+
+onMounted(() => {
+  cargar()
+  cargarPendientes()
+})
+
+const visibles = computed(() => usuarios.value)
 
 function mensajeDeError(e: unknown, fallback: string): string {
   return isAxiosError(e) && e.response?.data?.detail ? e.response.data.detail : fallback
@@ -52,7 +90,7 @@ async function ejecutar(usuario: Usuario, ruta: string, cuerpo: unknown, exito: 
   procesando.value = usuario.id
   try {
     await api.post(`/usuarios/${usuario.id}/${ruta}`, cuerpo)
-    await cargar()
+    await Promise.all([cargar(), cargarPendientes()])
     toasts.exito(exito)
   } catch (e) {
     toasts.error(mensajeDeError(e, 'No se pudo completar la acción.'))
@@ -136,6 +174,18 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
       <div v-if="pendientes > 0" class="chip chip-pendiente">
         {{ pendientes }} esperando aprobación
       </div>
+    </div>
+
+    <div class="glass flex flex-wrap items-center gap-3 p-4">
+      <div class="relative min-w-[220px] flex-1">
+        <input v-model="fTexto" type="search" placeholder="Nombre o email…" class="field" />
+      </div>
+      <select v-model="fRol" class="field !w-auto">
+        <option value="">Todos los roles</option>
+        <option value="Tecnico">Técnico</option>
+        <option value="Radiologo">Radiólogo</option>
+        <option value="Admin">Admin</option>
+      </select>
     </div>
 
     <div class="flex flex-wrap gap-2">
@@ -253,6 +303,8 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
           </tbody>
         </table>
       </div>
+
+      <Paginacion :pagina="pagina" :tamano-pagina="tamanoPagina" :total="total" @cambiar="(p) => (pagina = p)" />
     </div>
 
     <p v-if="error" class="text-sm text-red-700">{{ error }}</p>

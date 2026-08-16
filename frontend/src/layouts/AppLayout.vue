@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import LogoMark from '@/components/LogoMark.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import BotonTema from '@/components/BotonTema.vue'
+import CampanaNotificaciones from '@/components/CampanaNotificaciones.vue'
+import { useNotificacionesStore } from '@/stores/notificaciones'
 
 const auth = useAuthStore()
 const toasts = useToastStore()
@@ -18,10 +21,39 @@ const rolLabel: Record<string, string> = {
   Admin: 'Admin',
 }
 
+// `exacto` en Inicio porque su ruta es "/": con la coincidencia inclusiva de RouterLink
+// se marcaría como activo en todas las pantallas.
+const enlaces = computed(() => {
+  const rol = auth.usuario?.rol
+
+  return [
+    { destino: '/', etiqueta: 'Inicio', exacto: true, visible: true },
+    {
+      destino: '/resultados',
+      etiqueta: 'Resultados estudio',
+      exacto: false,
+      visible: rol === 'Tecnico' || rol === 'Admin',
+    },
+  ].filter((e) => e.visible)
+})
+
+const esAdmin = computed(() => auth.usuario?.rol === 'Admin')
+const recibeNotificaciones = computed(() => auth.usuario?.rol === 'Radiologo' || auth.usuario?.rol === 'Admin')
+
+const notificaciones = useNotificacionesStore()
+
+onMounted(() => {
+  if (recibeNotificaciones.value) {
+    notificaciones.cargarResumen()
+    notificaciones.conectar()
+  }
+})
+
 const inicial = computed(() => auth.usuario?.nombreCompleto.charAt(0).toUpperCase() ?? '?')
 
 function salir() {
   confirmandoSalida.value = false
+  notificaciones.desconectar()
   auth.logout()
   router.push({ name: 'login' })
   toasts.info('Cerraste sesión.')
@@ -31,7 +63,9 @@ function salir() {
 <template>
   <div class="aurora min-h-screen">
     <div class="mx-auto max-w-[1400px] px-4 py-5 sm:px-8 sm:py-7">
-        <header class="glass flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-5">
+        <!-- relative z-30: .glass trae backdrop-filter, que crea contexto de apilamiento. Sin z-index
+             el header se pinta antes que <main> y el desplegable queda debajo del contenido. -->
+        <header class="glass relative z-30 flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-5">
           <div class="flex items-center gap-6">
             <RouterLink to="/" class="flex items-center gap-2.5">
               <LogoMark />
@@ -40,27 +74,14 @@ function salir() {
 
             <nav class="flex items-center gap-1">
               <RouterLink
-                to="/"
-                class="text-ink-soft hover:text-ink rounded-full px-3.5 py-2 text-sm font-medium transition-colors hover:bg-white/70"
-                active-class="!bg-ink !text-white"
+                v-for="enlace in enlaces"
+                :key="enlace.destino"
+                :to="enlace.destino"
+                class="nav-enlace"
+                :active-class="enlace.exacto ? '' : 'nav-enlace-activo'"
+                :exact-active-class="enlace.exacto ? 'nav-enlace-activo' : ''"
               >
-                Worklist
-              </RouterLink>
-              <RouterLink
-                v-if="auth.usuario?.rol === 'Tecnico' || auth.usuario?.rol === 'Admin'"
-                to="/subir"
-                class="text-ink-soft hover:text-ink rounded-full px-3.5 py-2 text-sm font-medium transition-colors hover:bg-white/70"
-                active-class="!bg-ink !text-white"
-              >
-                Subir estudio
-              </RouterLink>
-              <RouterLink
-                v-if="auth.usuario?.rol === 'Admin'"
-                to="/usuarios"
-                class="text-ink-soft hover:text-ink rounded-full px-3.5 py-2 text-sm font-medium transition-colors hover:bg-white/70"
-                active-class="!bg-ink !text-white"
-              >
-                Usuarios
+                {{ enlace.etiqueta }}
               </RouterLink>
             </nav>
           </div>
@@ -70,6 +91,25 @@ function salir() {
               <p class="text-sm leading-tight font-medium">{{ auth.usuario?.nombreCompleto }}</p>
               <p class="meta-label leading-tight">{{ rolLabel[auth.usuario?.rol ?? ''] }}</p>
             </div>
+            <CampanaNotificaciones v-if="recibeNotificaciones" />
+            <RouterLink
+              v-if="esAdmin"
+              to="/configuracion"
+              class="btn-orb"
+              title="Configuración"
+              aria-label="Configuración"
+              active-class="!bg-ink !text-[var(--color-sobre-tinta)]"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.03 7.03 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.542-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.93 6.93 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.077-.124.072-.044.146-.086.22-.128.331-.183.581-.495.644-.869l.213-1.28Z"
+                />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+            </RouterLink>
+            <BotonTema />
             <span class="avatar-ring h-10 w-10">
               <span class="text-sm font-semibold">{{ inicial }}</span>
             </span>

@@ -108,7 +108,7 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
             </div>
             <div class="meta-row">
               <span class="meta-label">Hospital de origen</span>
-              <span class="text-sm font-medium">{{ estudio.hospitalOrigen }}</span>
+              <span class="text-sm font-medium">{{ estudio.hospitalNombre }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-label">Fecha del estudio</span>

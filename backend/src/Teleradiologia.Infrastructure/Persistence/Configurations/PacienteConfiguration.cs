@@ -11,6 +11,12 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
     {
         builder.Property(p => p.Sexo).HasConversion<string>().HasMaxLength(20);
 
-        builder.HasIndex(p => p.DocumentoIdentidad).IsUnique();
+        builder.HasIndex(p => new { p.HospitalId, p.DocumentoIdentidad }).IsUnique();
+        builder.HasIndex(p => p.HospitalId);
+
+        builder.HasOne(p => p.Hospital)
+            .WithMany()
+            .HasForeignKey(p => p.HospitalId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

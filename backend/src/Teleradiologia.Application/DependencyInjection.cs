@@ -16,6 +16,9 @@ public static class DependencyInjection
         services.AddScoped<IEstudioService, EstudioService>();
         services.AddScoped<IInformeService, InformeService>();
         services.AddScoped<IResumenActividadService, ResumenActividadService>();
+        services.AddScoped<IHospitalService, HospitalService>();
+        services.AddScoped<IEventoService, EventoService>();
+        services.AddScoped<INotificacionService, NotificacionService>();
 
         return services;
     }

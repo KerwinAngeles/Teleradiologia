@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import ScanOrb from '@/components/ScanOrb.vue'
 import LogoMark from '@/components/LogoMark.vue'
+import BotonTema from '@/components/BotonTema.vue'
 
 const auth = useAuthStore()
 const toasts = useToastStore()
@@ -42,6 +43,10 @@ async function onSubmit() {
 
 <template>
   <div class="aurora min-h-screen">
+    <div class="absolute top-5 right-5 z-10">
+      <BotonTema />
+    </div>
+
     <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
       <section class="fluting relative hidden flex-col justify-between p-10 lg:flex xl:p-14">
         <div class="flex items-center gap-2.5">

@@ -12,7 +12,7 @@ public interface IAccountService
 
     Task<BaseResponse<UsuarioDto>> ObtenerPerfilAsync(Guid usuarioId, CancellationToken ct);
 
-    Task<BaseResponse<List<UsuarioDto>>> ListarAsync(EstadoAcceso? estado, CancellationToken ct);
+    Task<BaseResponse<PagedResult<UsuarioDto>>> BuscarAsync(FiltroUsuarios filtro, CancellationToken ct);
 
     Task<BaseResponse<UsuarioDto>> AprobarAsync(Guid usuarioId, AprobarUsuarioRequest request, Guid adminId, CancellationToken ct);
 

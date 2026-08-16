@@ -11,6 +11,7 @@ public class InformeService(
     IInformeRepository informeRepository,
     IIdentityService identityService,
     IAuditLogRepository auditLogRepository,
+    IFirmaDigitalService firmaDigital,
     IEmailSender emailSender,
     IUnitOfWork unitOfWork) : IInformeService
 {
@@ -74,7 +75,7 @@ public class InformeService(
         return await MapearAsync(informe, ct);
     }
 
-    public async Task<InformeResponse> FirmarAsync(Guid informeId, Guid radiologoId, CancellationToken ct)
+    public async Task<InformeResponse> FirmarAsync(Guid informeId, Guid radiologoId, FirmarInformeRequest request, CancellationToken ct)
     {
         var informe = await ObtenerPropioAsync(informeId, radiologoId, ct);
 
@@ -83,15 +84,30 @@ public class InformeService(
             throw new EstadoInformeInvalidoException("Este informe ya está firmado.");
         }
 
-        informe.Estado = EstadoInforme.Firmado;
-        informe.FirmadoAt = DateTimeOffset.UtcNow;
+        var estudio = await estudioRepository.GetByIdAsync(informe.EstudioId, ct)
+            ?? throw new EstudioNoEncontradoException(informe.EstudioId);
 
-        var estudio = await estudioRepository.GetByIdAsync(informe.EstudioId, ct);
+        var radiologo = await identityService.ObtenerPorIdAsync(radiologoId, ct);
+
+        informe.Estado = EstadoInforme.Firmado;
+        informe.FirmadoAt = TruncarAMicrosegundos(DateTimeOffset.UtcNow);
+        informe.FirmanteNombre = radiologo?.NombreCompleto;
+        informe.FirmanteMatricula = radiologo?.Matricula;
+        informe.FirmaImagen = ValidarTrazo(request.FirmaImagen);
+        informe.VersionFirma = PayloadFirma.VersionActual;
+
+        var firma = firmaDigital.Firmar(
+            PayloadFirma.Construir(informe, estudio, PayloadFirma.VersionActual));
+        informe.HashContenido = firma.Hash;
+        informe.Firma = firma.Firma;
+        informe.AlgoritmoFirma = firma.Algoritmo;
 
         // Solo el informe original cierra el estudio — una adenda no lo vuelve a mover de Informado.
-        if (informe.InformeAnteriorId is null && estudio is not null)
+        if (informe.InformeAnteriorId is null)
         {
             estudio.Estado = EstadoEstudio.Informado;
+            // Cierra el reloj del SLA: es el momento contra el que se mide la entrega.
+            estudio.InformadoAt = informe.FirmadoAt;
         }
 
         auditLogRepository.Add(new AuditLog
@@ -104,10 +120,7 @@ public class InformeService(
 
         await unitOfWork.SaveChangesAsync(ct);
 
-        if (estudio is not null)
-        {
-            await NotificarHospitalAsync(estudio, ct);
-        }
+        await NotificarHospitalAsync(estudio, ct);
 
         return await MapearAsync(informe, ct);
     }
@@ -156,6 +169,10 @@ public class InformeService(
 
     public async Task<IReadOnlyList<InformeResponse>> GetByEstudioAsync(Guid estudioId, CancellationToken ct)
     {
+        // Un estudio de otro hospital tiene que dar 404, igual que pedirlo directo, y no una lista vacía.
+        _ = await estudioRepository.GetByIdAsync(estudioId, ct)
+            ?? throw new EstudioNoEncontradoException(estudioId);
+
         var informes = await informeRepository.GetByEstudioAsync(estudioId, ct);
 
         var nombres = new UsuarioNombreCache(identityService);
@@ -167,6 +184,32 @@ public class InformeService(
 
         return resultado;
     }
+
+    private const int MaximoBytesTrazo = 300 * 1024;
+
+    private static string? ValidarTrazo(string? firmaImagen)
+    {
+        if (string.IsNullOrWhiteSpace(firmaImagen))
+        {
+            return null;
+        }
+
+        if (!firmaImagen.StartsWith("data:image/png;base64,", StringComparison.Ordinal))
+        {
+            throw new ArchivoDicomInvalidoException("La firma manuscrita debe ser un PNG.");
+        }
+
+        if (firmaImagen.Length > MaximoBytesTrazo)
+        {
+            throw new ArchivoDicomInvalidoException("La firma manuscrita es demasiado grande.");
+        }
+
+        return firmaImagen;
+    }
+
+    // 10 ticks = 1 microsegundo: lo que la base es capaz de conservar.
+    private static DateTimeOffset TruncarAMicrosegundos(DateTimeOffset instante) =>
+        new(instante.Ticks - (instante.Ticks % 10), instante.Offset);
 
     private async Task<Informe> ObtenerPropioAsync(Guid informeId, Guid radiologoId, CancellationToken ct)
     {
@@ -212,5 +255,57 @@ public class InformeService(
             EsAdenda: informe.InformeAnteriorId is not null,
             informe.InformeAnteriorId,
             informe.CreatedAt,
+            informe.FirmadoAt,
+            informe.HashContenido,
+            informe.AlgoritmoFirma,
+            informe.FirmanteNombre,
+            informe.FirmanteMatricula,
+            informe.FirmaImagen);
+
+    public async Task<VerificacionFirmaResponse> VerificarFirmaAsync(Guid informeId, CancellationToken ct)
+    {
+        var informe = await informeRepository.GetByIdAsync(informeId, ct)
+            ?? throw new InformeNoEncontradoException(informeId);
+
+        var estudio = await estudioRepository.GetByIdAsync(informe.EstudioId, ct)
+            ?? throw new EstudioNoEncontradoException(informe.EstudioId);
+
+        if (!informe.EstaFirmado)
+        {
+            return new VerificacionFirmaResponse(
+                informe.Id, false, false, false,
+                "El informe todavía no está firmado.",
+                informe.HashContenido, string.Empty, informe.AlgoritmoFirma,
+                informe.FirmanteNombre, informe.FirmanteMatricula, informe.FirmadoAt);
+        }
+
+        // Se recalcula sobre el contenido ACTUAL: si alguien lo editó por fuera de la
+        // aplicación, el hash deja de coincidir y la verificación falla.
+        // Se reconstruye con la versión con la que se firmó: los informes viejos siguen
+        // verificándose aunque el formato del payload haya cambiado después.
+        var resultado = firmaDigital.Verificar(
+            PayloadFirma.Construir(informe, estudio, informe.VersionFirma ?? 1),
+            informe.HashContenido,
+            informe.Firma);
+
+        var motivo = resultado switch
+        {
+            { HashCoincide: false } => "El contenido del informe no coincide con el que se firmó.",
+            { FirmaValida: false } => "La firma no corresponde a la clave de la plataforma.",
+            _ => null,
+        };
+
+        return new VerificacionFirmaResponse(
+            informe.Id,
+            resultado.EsValida,
+            resultado.HashCoincide,
+            resultado.FirmaValida,
+            motivo,
+            informe.HashContenido,
+            resultado.HashCalculado,
+            informe.AlgoritmoFirma,
+            informe.FirmanteNombre,
+            informe.FirmanteMatricula,
             informe.FirmadoAt);
+    }
 }
