@@ -182,14 +182,9 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
 
 <template>
   <div class="stagger space-y-7">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p class="meta-label">Cola de lectura</p>
-        <h1 class="display mt-1.5 text-3xl sm:text-4xl">Worklist</h1>
-      </div>
-      <p class="text-ink-soft text-sm">
-        {{ total }} estudio{{ total === 1 ? '' : 's' }}{{ hayFiltros ? ' con estos filtros' : ' en la plataforma' }}
-      </p>
+    <div>
+      <p class="meta-label">Cola de lectura</p>
+      <h1 class="display mt-1.5 text-3xl sm:text-4xl">Worklist</h1>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

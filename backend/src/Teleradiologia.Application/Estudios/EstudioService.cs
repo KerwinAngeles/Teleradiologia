@@ -164,8 +164,7 @@ public class EstudioService(
 
     public async Task<(byte[] Bytes, string ContentType)> ObtenerImagenAsync(Guid estudioId, string orthancInstanceId, CancellationToken ct)
     {
-        // No valida que la instancia sea de este estudio: todavía no hay ACL por hospital/paciente.
-        _ = await estudioRepository.GetByIdAsync(estudioId, ct) ?? throw new EstudioNoEncontradoException(estudioId);
+        await ValidarInstanciaDelEstudioAsync(estudioId, orthancInstanceId, ct);
 
         var imagen = await orthancClient.ObtenerImagenInstanciaAsync(orthancInstanceId, ct);
         return (imagen.Bytes, imagen.ContentType);
@@ -173,9 +172,26 @@ public class EstudioService(
 
     public async Task<byte[]> ObtenerArchivoDicomAsync(Guid estudioId, string orthancInstanceId, CancellationToken ct)
     {
-        _ = await estudioRepository.GetByIdAsync(estudioId, ct) ?? throw new EstudioNoEncontradoException(estudioId);
+        await ValidarInstanciaDelEstudioAsync(estudioId, orthancInstanceId, ct);
 
         return await orthancClient.ObtenerArchivoDicomAsync(orthancInstanceId, ct);
+    }
+
+    // El filtro por hospital valida el estudio, no la imagen. Sin esta comprobación
+    // alcanzaba con acompañar un id de instancia ajeno de un estudioId propio para
+    // que la plataforma sirviera el DICOM de otro hospital: los ids de instancia
+    // viajan al navegador en cada visor, así que no son ningún secreto.
+    private async Task ValidarInstanciaDelEstudioAsync(Guid estudioId, string orthancInstanceId, CancellationToken ct)
+    {
+        var estudio = await estudioRepository.GetByIdAsync(estudioId, ct)
+            ?? throw new EstudioNoEncontradoException(estudioId);
+
+        var estudioDeLaInstancia = await orthancClient.ObtenerEstudioDeInstanciaAsync(orthancInstanceId, ct);
+
+        if (!string.Equals(estudioDeLaInstancia, estudio.OrthancStudyId, StringComparison.Ordinal))
+        {
+            throw new ImagenNoEncontradaException(orthancInstanceId);
+        }
     }
 
     private Task<EstudioResponse> MapearAsync(Estudio estudio, CancellationToken ct) =>

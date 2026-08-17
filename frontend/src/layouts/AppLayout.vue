@@ -33,6 +33,7 @@ const enlaces = computed(() => {
 
   return [
     { destino: '/', etiqueta: 'Inicio', exacto: true, visible: true },
+    { destino: '/informes', etiqueta: 'Informes', exacto: false, visible: rol !== undefined },
     {
       destino: '/resultados',
       etiqueta: 'Resultados estudio',

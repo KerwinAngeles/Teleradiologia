@@ -6,6 +6,8 @@ import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import EditorInforme from '@/components/EditorInforme.vue'
+import HojaInforme from '@/components/HojaInforme.vue'
+import { normalizarInforme } from '@/services/informeHtml'
 import SelectorPlantilla from '@/components/SelectorPlantilla.vue'
 import PadFirma from '@/components/PadFirma.vue'
 import Modal from '@/components/Modal.vue'
@@ -50,22 +52,13 @@ async function cargar() {
 
     if (existente) {
       informe.value = existente
-      contenido.value = normalizar(existente.contenido)
+      contenido.value = normalizarInforme(existente.contenido)
     }
   } catch {
     error.value = 'No se pudo cargar el estudio.'
   } finally {
     cargando.value = false
   }
-}
-
-// Los informes viejos son texto plano: se envuelven en párrafos para que el editor los muestre.
-function normalizar(texto: string): string {
-  if (texto.trimStart().startsWith('<')) return texto
-  return texto
-    .split(/\n{2,}/)
-    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-    .join('')
 }
 
 onMounted(cargar)
@@ -144,14 +137,6 @@ function exportarPdf() {
   window.print()
 }
 
-const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-const formatoFechaHora = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-})
 </script>
 
 <template>
@@ -202,67 +187,23 @@ const formatoFechaHora = new Intl.DateTimeFormat('es-AR', {
         <SelectorPlantilla
           v-if="!soloLectura"
           :modalidad="estudio?.modalidad"
-          @aplicar="(t) => (contenido = normalizar(t))"
+          @aplicar="(t) => (contenido = normalizarInforme(t))"
         />
       </div>
 
-      <article class="hoja">
-        <header class="hoja-encabezado">
-          <div class="flex items-start justify-between gap-6">
-            <div>
-              <p class="hoja-titulo">Informe radiológico</p>
-              <p class="hoja-sub">{{ estudio?.hospitalNombre }}</p>
-            </div>
-            <div class="text-right">
-              <p class="hoja-sub">Emitido</p>
-              <p class="text-sm tabular-nums">
-                {{ formatoFecha.format(informe?.firmadoAt ? new Date(informe.firmadoAt) : new Date()) }}
-              </p>
-            </div>
-          </div>
-
-          <dl class="hoja-datos">
-            <div><dt>Paciente</dt><dd>{{ estudio?.pacienteNombre }}</dd></div>
-            <div><dt>Documento</dt><dd>{{ estudio?.pacienteDocumento }}</dd></div>
-            <div><dt>Modalidad</dt><dd>{{ estudio?.modalidad }}</dd></div>
-            <div>
-              <dt>Fecha del estudio</dt>
-              <dd>{{ estudio ? formatoFecha.format(new Date(estudio.fechaEstudio)) : '' }}</dd>
-            </div>
-          </dl>
-        </header>
-
-        <div class="hoja-cuerpo">
-          <EditorInforme v-model="contenido" :editable="!soloLectura" />
-        </div>
-
-        <!-- Pie con la firma: se repite en cada página al imprimir. -->
-        <footer class="hoja-pie">
-          <div class="hoja-firma">
-            <img
-              v-if="informe?.firmaImagen"
-              :src="informe.firmaImagen"
-              alt="Firma del radiólogo"
-              class="hoja-firma-trazo"
-            />
-            <div v-else class="hoja-firma-linea" />
-
-            <p class="hoja-firma-nombre">
-              {{ informe?.firmanteNombre ?? auth.usuario?.nombreCompleto }}
-            </p>
-            <p class="hoja-firma-datos">
-              <template v-if="informe?.firmanteMatricula ?? auth.usuario?.matricula">
-                Matrícula {{ informe?.firmanteMatricula ?? auth.usuario?.matricula }}
-              </template>
-              <template v-else>Médico radiólogo</template>
-            </p>
-            <p v-if="informe?.firmadoAt" class="hoja-firma-datos">
-              Firmado digitalmente el {{ formatoFechaHora.format(new Date(informe.firmadoAt)) }}
-            </p>
-            <p v-else class="hoja-firma-datos hoja-borrador">Borrador — sin firmar</p>
-          </div>
-        </footer>
-      </article>
+      <HojaInforme
+        :hospital-nombre="estudio?.hospitalNombre"
+        :paciente-nombre="estudio?.pacienteNombre"
+        :paciente-documento="estudio?.pacienteDocumento"
+        :modalidad="estudio?.modalidad"
+        :fecha-estudio="estudio?.fechaEstudio"
+        :firmado-at="informe?.firmadoAt"
+        :firmante-nombre="informe?.firmanteNombre ?? auth.usuario?.nombreCompleto"
+        :firmante-matricula="informe?.firmanteMatricula ?? auth.usuario?.matricula"
+        :firma-imagen="informe?.firmaImagen"
+      >
+        <EditorInforme v-model="contenido" :editable="!soloLectura" />
+      </HojaInforme>
     </div>
 
     <Modal

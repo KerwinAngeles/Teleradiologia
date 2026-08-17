@@ -25,6 +25,10 @@ const props = defineProps<{
   fechaEstudio?: string
 }>()
 
+// Se emite pase lo que pase —con imágenes, sin imágenes o con error—: quien esté
+// esperando para tapar la pantalla necesita saber que el visor ya terminó.
+const emit = defineEmits<{ listo: [] }>()
+
 // Ids únicos por instancia: dos visores no deben pisarse el rendering engine.
 const sufijo = Math.random().toString(36).slice(2, 10)
 const renderingEngineId = `re-${sufijo}`
@@ -281,13 +285,10 @@ function onKeydownGlobal(evento: KeyboardEvent) {
 }
 
 async function montarVisor() {
-  const elemento = contenedor.value
-  if (!elemento || props.imagenes.length === 0) {
-    cargando.value = false
-    return
-  }
-
   try {
+    const elemento = contenedor.value
+    if (!elemento || props.imagenes.length === 0) return
+
     await inicializarCornerstone()
 
     const motor = new RenderingEngine(renderingEngineId)
@@ -338,6 +339,7 @@ async function montarVisor() {
     error.value = 'No se pudo inicializar el visor.'
   } finally {
     cargando.value = false
+    emit('listo')
   }
 }
 

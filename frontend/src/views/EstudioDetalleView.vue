@@ -1,20 +1,45 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useNavegacionStore } from '@/stores/navegacion'
+import { tomarPrecarga } from '@/services/precargaEstudio'
 import { useReloj, formatearRestante } from '@/composables/useReloj'
 import PanelEstudio from '@/components/visor/PanelEstudio.vue'
 import type { Estudio, ImagenEstudio, EstadoSla } from '@/types/estudio'
 import type { Informe } from '@/types/informe'
 
+// El guard de la ruta ya bajó este chunk antes de dejar navegar, así que acá está
+// resuelto al instante.
 const DicomViewer = defineAsyncComponent(() => import('@/components/DicomViewer.vue'))
 
 const route = useRoute()
 const auth = useAuthStore()
 const toasts = useToastStore()
+const navegacion = useNavegacionStore()
 const { ahora } = useReloj()
+
+// La pantalla de carga viene encendida desde el router y la apagamos nosotros: la
+// ruta está marcada `cargaPropia`. Se apaga cuando hay algo que mirar, no antes.
+let pantallaLiberada = false
+const datosListos = ref(false)
+
+function liberarPantalla() {
+  if (pantallaLiberada) return
+  pantallaLiberada = true
+  navegacion.terminar()
+}
+
+function visorListo() {
+  if (datosListos.value) liberarPantalla()
+}
+
+// Red de seguridad: la pantalla de carga tapa todo, así que ningún fallo silencioso
+// —un chunk que no baja, Cornerstone que no arranca— puede dejarla puesta.
+const TOPE_ESPERA_MS = 8000
+let temporizadorTope: ReturnType<typeof setTimeout> | null = null
 
 const estudioId = computed(() => route.params.id as string)
 
@@ -25,22 +50,43 @@ const cargando = ref(true)
 const error = ref<string | null>(null)
 const tomando = ref(false)
 
+function asentarDatos(est: Estudio, imgs: ImagenEstudio[], infs: Informe[]) {
+  estudio.value = est
+  imagenes.value = imgs
+  informes.value = infs
+  datosListos.value = true
+  cargando.value = false
+  // Sin imágenes no hay visor que espere: se destapa acá.
+  if (imgs.length === 0) liberarPantalla()
+}
+
 async function cargarEstudio() {
   cargando.value = true
   error.value = null
   try {
-    const [{ data: est }, { data: imgs }, { data: infs }] = await Promise.all([
-      api.get<Estudio>(`/estudios/${estudioId.value}`),
-      api.get<ImagenEstudio[]>(`/estudios/${estudioId.value}/imagenes`),
-      api.get<Informe[]>(`/estudios/${estudioId.value}/informes`),
-    ])
-    estudio.value = est
-    imagenes.value = imgs
-    informes.value = infs
+    // Camino normal: el guard de la ruta ya lanzó la carga antes de dejar navegar, y
+    // casi siempre ya está resuelta. Si se pasó del tope, se sigue esperando la misma
+    // petición en vez de duplicarla.
+    const precarga = tomarPrecarga(estudioId.value)
+
+    const datos =
+      precarga ??
+      Promise.all([
+        api.get<Estudio>(`/estudios/${estudioId.value}`),
+        api.get<ImagenEstudio[]>(`/estudios/${estudioId.value}/imagenes`),
+        api.get<Informe[]>(`/estudios/${estudioId.value}/informes`),
+      ]).then(([est, imgs, infs]) => ({
+        estudio: est.data,
+        imagenes: imgs.data,
+        informes: infs.data,
+      }))
+
+    const { estudio: est, imagenes: imgs, informes: infs } = await datos
+    asentarDatos(est, imgs, infs)
   } catch {
     error.value = 'No se pudo cargar el estudio.'
-  } finally {
     cargando.value = false
+    liberarPantalla()
   }
 }
 
@@ -66,7 +112,16 @@ async function tomar() {
   }
 }
 
-onMounted(cargarEstudio)
+onMounted(() => {
+  temporizadorTope = setTimeout(liberarPantalla, TOPE_ESPERA_MS)
+  void cargarEstudio()
+})
+
+onUnmounted(() => {
+  if (temporizadorTope) clearTimeout(temporizadorTope)
+  // Si se sale antes de estar listo, no dejamos la pantalla encendida para siempre.
+  liberarPantalla()
+})
 
 const esRadiologo = computed(() => auth.usuario?.rol === 'Radiologo')
 const esMio = computed(() => estudio.value?.radiologoAsignadoId === auth.usuario?.id)
@@ -176,6 +231,7 @@ const lineaTecnica = computed(() => {
         <DicomViewer
           class="max-xl:h-[62vh] max-xl:flex-none"
           :estudio-id="estudioId"
+          @listo="visorListo"
           :imagenes="imagenes"
           :modalidad="estudio.modalidad"
           :paciente-nombre="estudio.pacienteNombre"

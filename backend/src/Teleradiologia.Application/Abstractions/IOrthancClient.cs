@@ -30,6 +30,10 @@ public interface IOrthancClient
 
     Task<IReadOnlyList<OrthancInstanciaResumen>> ObtenerInstanciasDelEstudioAsync(string orthancStudyId, CancellationToken ct);
 
+    // Estudio de Orthanc del que cuelga la instancia, o null si la instancia no existe.
+    // Es lo que permite comprobar que una imagen pertenece al estudio que se pidió.
+    Task<string?> ObtenerEstudioDeInstanciaAsync(string orthancInstanceId, CancellationToken ct);
+
     Task<OrthancImagen> ObtenerImagenInstanciaAsync(string orthancInstanceId, CancellationToken ct);
 
     Task<byte[]> ObtenerArchivoDicomAsync(string orthancInstanceId, CancellationToken ct);

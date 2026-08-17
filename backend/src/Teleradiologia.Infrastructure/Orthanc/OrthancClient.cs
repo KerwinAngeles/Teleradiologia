@@ -67,6 +67,19 @@ public class OrthancClient(HttpClient httpClient) : IOrthancClient
             .ToList();
     }
 
+    public async Task<string?> ObtenerEstudioDeInstanciaAsync(string orthancInstanceId, CancellationToken ct)
+    {
+        var response = await httpClient.GetAsync($"instances/{orthancInstanceId}/study", ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            // Una instancia inexistente no es un error del servicio: es un id que no vale.
+            return null;
+        }
+
+        var estudio = await response.Content.ReadFromJsonAsync<OrthancStudyRefDto>(ct);
+        return estudio?.ID;
+    }
+
     private static int Cuadros(OrthancInstanceSummaryDto instancia) =>
         int.TryParse(instancia.MainDicomTags?.NumberOfFrames, out var cuadros) && cuadros > 0 ? cuadros : 1;
 
@@ -136,6 +149,8 @@ public class OrthancClient(HttpClient httpClient) : IOrthancClient
     };
 
     private record OrthancInstanceUploadResponse(string ID, string ParentStudy, string Status);
+
+    private record OrthancStudyRefDto(string ID);
 
     // MainDicomTags trae NumberOfFrames como texto; ausente en las instancias de un solo cuadro.
     private record OrthancInstanceSummaryDto(

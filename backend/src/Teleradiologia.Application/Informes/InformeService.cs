@@ -185,6 +185,73 @@ public class InformeService(
         return resultado;
     }
 
+    public async Task<PagedResult<InformeListadoResponse>> BuscarAsync(FiltroInformes filtro, CancellationToken ct)
+    {
+        var pagina = await informeRepository.BuscarAsync(filtro, ct);
+
+        var nombres = new UsuarioNombreCache(identityService);
+        var items = new List<InformeListadoResponse>(pagina.Items.Count);
+        foreach (var informe in pagina.Items)
+        {
+            items.Add(new InformeListadoResponse(
+                informe.Id,
+                informe.EstudioId,
+                informe.Estudio.Paciente.NombreCompleto,
+                informe.Estudio.Paciente.DocumentoIdentidad,
+                informe.Estudio.Modalidad,
+                informe.Estudio.Hospital.Nombre,
+                informe.Estudio.FechaEstudio,
+                informe.Estado,
+                EsAdenda: informe.InformeAnteriorId is not null,
+                informe.CreatedAt,
+                informe.FirmadoAt,
+                await nombres.ObtenerAsync(informe.RadiologoId, ct)));
+        }
+
+        return new PagedResult<InformeListadoResponse>(items, pagina.PageNumber, pagina.PageSize, pagina.TotalCount);
+    }
+
+    public async Task<InformeDetalleResponse> ObtenerParaLecturaAsync(Guid informeId, FiltroInformes alcance, CancellationToken ct)
+    {
+        var informe = await informeRepository.GetConEstudioAsync(informeId, ct)
+            ?? throw new InformeNoEncontradoException(informeId);
+
+        // Mismo alcance que el listado, aplicado de nuevo: sin esto, un id copiado de
+        // otra sesión abriría un informe que en la lista no aparece. 404 y no 403 para
+        // no confirmar que existe.
+        var permitido =
+            (alcance.RadiologoId is not { } radiologoId || informe.RadiologoId == radiologoId) &&
+            (alcance.SubidoPorId is not { } subidoPorId || informe.Estudio.SubidoPorId == subidoPorId);
+
+        if (!permitido)
+        {
+            throw new InformeNoEncontradoException(informeId);
+        }
+
+        var nombres = new UsuarioNombreCache(identityService);
+
+        return new InformeDetalleResponse(
+            informe.Id,
+            informe.EstudioId,
+            informe.Estudio.Paciente.NombreCompleto,
+            informe.Estudio.Paciente.DocumentoIdentidad,
+            informe.Estudio.Modalidad,
+            informe.Estudio.DescripcionEstudio,
+            informe.Estudio.Hospital.Nombre,
+            informe.Estudio.FechaEstudio,
+            informe.Contenido,
+            informe.Estado,
+            EsAdenda: informe.InformeAnteriorId is not null,
+            informe.CreatedAt,
+            informe.FirmadoAt,
+            await nombres.ObtenerAsync(informe.RadiologoId, ct),
+            informe.HashContenido,
+            informe.AlgoritmoFirma,
+            informe.FirmanteNombre,
+            informe.FirmanteMatricula,
+            informe.FirmaImagen);
+    }
+
     private const int MaximoBytesTrazo = 300 * 1024;
 
     private static string? ValidarTrazo(string? firmaImagen)

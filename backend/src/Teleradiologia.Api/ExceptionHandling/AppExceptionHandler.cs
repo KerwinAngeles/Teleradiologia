@@ -16,6 +16,7 @@ public class AppExceptionHandler : IExceptionHandler
             EstudioNoEncontradoException => (StatusCodes.Status404NotFound, exception.Message),
             EstudioNoDisponibleException => (StatusCodes.Status409Conflict, exception.Message),
             InformeNoEncontradoException => (StatusCodes.Status404NotFound, exception.Message),
+            ImagenNoEncontradaException => (StatusCodes.Status404NotFound, exception.Message),
             ProhibidoException => (StatusCodes.Status403Forbidden, exception.Message),
             EstadoInformeInvalidoException => (StatusCodes.Status409Conflict, exception.Message),
             _ => (0, string.Empty),

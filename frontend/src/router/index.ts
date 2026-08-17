@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNavegacionStore } from '@/stores/navegacion'
+import { precargarEstudio } from '@/services/precargaEstudio'
 import type { Rol } from '@/types/auth'
+
+const TOPE_PRECARGA_MS = 6000
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -10,6 +13,9 @@ declare module 'vue-router' {
     // Rompe el contenedor de 1400px y fija el alto al viewport: para pantallas de
     // trabajo donde la imagen tiene que ganar todos los píxeles posibles.
     anchoCompleto?: boolean
+    // La vista apaga ella misma la pantalla de carga. Para las que siguen trabajando
+    // después de resolverse la ruta: pedir datos, bajar un chunk pesado, inicializar.
+    cargaPropia?: boolean
   }
 }
 
@@ -27,6 +33,14 @@ const router = createRouter({
       name: 'redactar-informe',
       component: () => import('@/views/RedactarInformeView.vue'),
       meta: { roles: ['Radiologo'] },
+    },
+    {
+      // Fuera de AppLayout: la hoja se imprime, y la barra de la aplicación no debe
+      // salir en el papel.
+      path: '/informes/:id',
+      name: 'informe-hoja',
+      component: () => import('@/views/InformeHojaView.vue'),
+      meta: { roles: ['Radiologo', 'Admin', 'Tecnico'] },
     },
     {
       path: '/registro',
@@ -48,7 +62,26 @@ const router = createRouter({
           name: 'estudio-detalle',
           component: () => import('@/views/EstudioDetalleView.vue'),
           props: true,
-          meta: { anchoCompleto: true },
+          meta: { anchoCompleto: true, cargaPropia: true },
+          // Con la pantalla de carga ya puesta, se baja acá todo lo que la vista
+          // necesita —datos del estudio y el chunk del visor, que pesa varios MB— y
+          // recién entonces se confirma la navegación. Así la pantalla del estudio
+          // no se ve armándose por partes.
+          beforeEnter: async (to) => {
+            try {
+              await Promise.race([
+                Promise.all([
+                  precargarEstudio(to.params.id as string),
+                  import('@/components/DicomViewer.vue'),
+                ]),
+                // Una precarga colgada no puede dejar al usuario encerrado en el
+                // worklist: pasado el tope se entra igual y la vista se arregla sola.
+                new Promise((resolver) => setTimeout(resolver, TOPE_PRECARGA_MS)),
+              ])
+            } catch {
+              // Que falle no impide entrar: la vista pide los datos y muestra su error.
+            }
+          },
         },
         {
           path: 'resultados',
@@ -61,6 +94,12 @@ const router = createRouter({
           name: 'usuarios',
           component: () => import('@/views/UsuariosView.vue'),
           meta: { roles: ['Admin'] },
+        },
+        {
+          path: 'informes',
+          name: 'informes',
+          component: () => import('@/views/InformesView.vue'),
+          meta: { roles: ['Radiologo', 'Admin', 'Tecnico'] },
         },
         {
           path: 'plantillas',
@@ -116,7 +155,9 @@ router.beforeEach((to, from) => {
   const auth = useAuthStore()
 
   if (to.path !== from.path) {
-    useNavegacionStore().iniciar()
+    // Las rutas que precargan tardan sí o sí, así que la pantalla va sin demora:
+    // el clic tiene que responder antes de que empiece la espera.
+    useNavegacionStore().iniciar(to.meta.cargaPropia === true)
   }
 
   if (!to.meta.public && !auth.estaAutenticado) {
@@ -134,7 +175,11 @@ router.beforeEach((to, from) => {
   return true
 })
 
-router.afterEach(() => useNavegacionStore().terminar())
+router.afterEach((to) => {
+  // Resolver la ruta no es lo mismo que tener algo que mirar: las vistas marcadas
+  // apagan la pantalla recién cuando terminaron de cargarse de verdad.
+  if (!to.meta.cargaPropia) useNavegacionStore().terminar()
+})
 router.onError(() => useNavegacionStore().terminar())
 
 export default router

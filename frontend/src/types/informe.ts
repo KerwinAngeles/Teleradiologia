@@ -18,6 +18,32 @@ export interface Informe {
   firmaImagen: string | null
 }
 
+// Fila del listado general de informes: sin contenido, que solo hace falta en la hoja.
+export interface InformeListado {
+  id: string
+  estudioId: string
+  pacienteNombre: string
+  pacienteDocumento: string
+  modalidad: string
+  hospitalNombre: string
+  fechaEstudio: string
+  estado: EstadoInforme
+  esAdenda: boolean
+  createdAt: string
+  firmadoAt: string | null
+  radiologoNombre: string
+}
+
+export interface InformeDetalle extends InformeListado {
+  descripcionEstudio: string | null
+  contenido: string
+  hashContenido: string | null
+  algoritmoFirma: string | null
+  firmanteNombre: string | null
+  firmanteMatricula: string | null
+  firmaImagen: string | null
+}
+
 export interface VerificacionFirma {
   informeId: string
   valida: boolean

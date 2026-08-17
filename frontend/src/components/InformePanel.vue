@@ -5,7 +5,7 @@ import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import Modal from '@/components/Modal.vue'
-import DOMPurify from 'dompurify'
+import { comoHtmlSeguro } from '@/services/informeHtml'
 import SelectorPlantilla from '@/components/SelectorPlantilla.vue'
 import PadFirma from '@/components/PadFirma.vue'
 import type { Estudio } from '@/types/estudio'
@@ -48,23 +48,6 @@ async function verificarFirma(informe: Informe) {
   } finally {
     verificando.value = null
   }
-}
-
-// El contenido es HTML del editor, pero se sanea igual antes de inyectarlo: nunca se
-// confía en lo que llega de la base, aunque lo haya escrito un usuario autenticado.
-function comoHtml(contenido: string): string {
-  // Los informes anteriores al editor son texto plano: se envuelven en párrafos.
-  const html = contenido.trimStart().startsWith('<')
-    ? contenido
-    : contenido
-        .split(/\n{2,}/)
-        .map((parrafo) => `<p>${parrafo.replace(/\n/g, '<br>')}</p>`)
-        .join('')
-
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote'],
-    ALLOWED_ATTR: ['style'],
-  })
 }
 
 function resumen(hash: string | null): string {
@@ -220,7 +203,7 @@ const areaTexto = 'field mt-3 min-h-[9rem] resize-y leading-relaxed'
             <button type="button" class="btn-ghost !py-2 !text-xs" @click="editandoId = null">Cancelar</button>
           </div>
         </template>
-        <div v-else class="informe-prosa !px-0 !py-0 !min-h-0 mt-3 text-sm" v-html="comoHtml(informe.contenido)" />
+        <div v-else class="informe-prosa !px-0 !py-0 !min-h-0 mt-3 text-sm" v-html="comoHtmlSeguro(informe.contenido)" />
 
         <div
           v-if="informe.estado === 'Firmado' && informe.hashContenido"

@@ -11,15 +11,24 @@ export const useNavegacionStore = defineStore('navegacion', () => {
   let temporizadorMostrar: ReturnType<typeof setTimeout> | null = null
   let mostradoEn = 0
 
-  function iniciar() {
+  function mostrar() {
+    cargando.value = true
+    mostradoEn = Date.now()
+    temporizadorMostrar = null
+  }
+
+  // `inmediato` para las pantallas que se sabe que van a tardar —las que precargan
+  // antes de navegar—: ahí esperar los 180 ms deja el clic sin respuesta visible.
+  function iniciar(inmediato = false) {
     if (temporizadorMostrar) clearTimeout(temporizadorMostrar)
 
+    if (inmediato) {
+      mostrar()
+      return
+    }
+
     // Si la navegación es instantánea no se muestra nada: el parpadeo molesta más que la espera.
-    temporizadorMostrar = setTimeout(() => {
-      cargando.value = true
-      mostradoEn = Date.now()
-      temporizadorMostrar = null
-    }, RETRASO_MS)
+    temporizadorMostrar = setTimeout(mostrar, RETRASO_MS)
   }
 
   function terminar() {
