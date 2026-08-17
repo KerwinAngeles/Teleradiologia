@@ -157,7 +157,9 @@ public class EstudioService(
         });
         await unitOfWork.SaveChangesAsync(ct);
 
-        return instancias.Select(i => new ImagenEstudioResponse(i.OrthancInstanceId, i.NumeroInstancia)).ToList();
+        return instancias
+            .Select(i => new ImagenEstudioResponse(i.OrthancInstanceId, i.NumeroInstancia, i.NumeroDeCuadros))
+            .ToList();
     }
 
     public async Task<(byte[] Bytes, string ContentType)> ObtenerImagenAsync(Guid estudioId, string orthancInstanceId, CancellationToken ct)

@@ -20,6 +20,7 @@ public class AppDbContext(
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Evento> Eventos => Set<Evento>();
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
+    public DbSet<PlantillaInforme> PlantillasInforme => Set<PlantillaInforme>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

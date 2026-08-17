@@ -63,9 +63,12 @@ public class OrthancClient(HttpClient httpClient) : IOrthancClient
         return instancias
             .OrderBy(i => i.ParentSeries, StringComparer.Ordinal)
             .ThenBy(i => i.IndexInSeries)
-            .Select(i => new OrthancInstanciaResumen(i.ID, i.ParentSeries, i.IndexInSeries))
+            .Select(i => new OrthancInstanciaResumen(i.ID, i.ParentSeries, i.IndexInSeries, Cuadros(i)))
             .ToList();
     }
+
+    private static int Cuadros(OrthancInstanceSummaryDto instancia) =>
+        int.TryParse(instancia.MainDicomTags?.NumberOfFrames, out var cuadros) && cuadros > 0 ? cuadros : 1;
 
     public async Task<OrthancImagen> ObtenerImagenInstanciaAsync(string orthancInstanceId, CancellationToken ct)
     {
@@ -134,5 +137,12 @@ public class OrthancClient(HttpClient httpClient) : IOrthancClient
 
     private record OrthancInstanceUploadResponse(string ID, string ParentStudy, string Status);
 
-    private record OrthancInstanceSummaryDto(string ID, string ParentSeries, int IndexInSeries);
+    // MainDicomTags trae NumberOfFrames como texto; ausente en las instancias de un solo cuadro.
+    private record OrthancInstanceSummaryDto(
+        string ID,
+        string ParentSeries,
+        int IndexInSeries,
+        OrthancInstanceTagsDto? MainDicomTags);
+
+    private record OrthancInstanceTagsDto(string? NumberOfFrames);
 }

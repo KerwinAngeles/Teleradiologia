@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IHospitalService, HospitalService>();
         services.AddScoped<IEventoService, EventoService>();
         services.AddScoped<INotificacionService, NotificacionService>();
+        services.AddScoped<IPlantillaService, PlantillaService>();
 
         return services;
     }

@@ -11,6 +11,7 @@ export interface Usuario {
   createdAt: string
   fechaDecision: string | null
   motivoDecision: string | null
+  matricula: string | null
   activo: boolean
 }
 

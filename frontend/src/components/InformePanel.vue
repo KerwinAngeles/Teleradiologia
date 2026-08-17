@@ -5,11 +5,18 @@ import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import Modal from '@/components/Modal.vue'
+import DOMPurify from 'dompurify'
+import SelectorPlantilla from '@/components/SelectorPlantilla.vue'
 import PadFirma from '@/components/PadFirma.vue'
 import type { Estudio } from '@/types/estudio'
 import type { Informe, VerificacionFirma } from '@/types/informe'
 
-const props = defineProps<{ estudio: Estudio; informes: Informe[] }>()
+// `panel` lo despoja del vidrio y del encabezado: adentro de la pestaña del visor
+// ese cromo lo pone el panel, y repetirlo se ve como una tarjeta dentro de otra.
+const props = withDefaults(
+  defineProps<{ estudio: Estudio; informes: Informe[]; variante?: 'tarjeta' | 'panel' }>(),
+  { variante: 'tarjeta' },
+)
 const emit = defineEmits<{ actualizar: [] }>()
 
 const auth = useAuthStore()
@@ -41,6 +48,23 @@ async function verificarFirma(informe: Informe) {
   } finally {
     verificando.value = null
   }
+}
+
+// El contenido es HTML del editor, pero se sanea igual antes de inyectarlo: nunca se
+// confía en lo que llega de la base, aunque lo haya escrito un usuario autenticado.
+function comoHtml(contenido: string): string {
+  // Los informes anteriores al editor son texto plano: se envuelven en párrafos.
+  const html = contenido.trimStart().startsWith('<')
+    ? contenido
+    : contenido
+        .split(/\n{2,}/)
+        .map((parrafo) => `<p>${parrafo.replace(/\n/g, '<br>')}</p>`)
+        .join('')
+
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote'],
+    ALLOWED_ATTR: ['style'],
+  })
 }
 
 function resumen(hash: string | null): string {
@@ -153,8 +177,8 @@ const areaTexto = 'field mt-3 min-h-[9rem] resize-y leading-relaxed'
 </script>
 
 <template>
-  <section class="glass p-6">
-    <div class="flex items-center justify-between">
+  <section :class="variante === 'panel' ? '' : 'glass p-6'">
+    <div v-if="variante === 'tarjeta'" class="flex items-center justify-between">
       <div>
         <p class="meta-label">Lectura</p>
         <h2 class="display mt-1 text-xl">Informe</h2>
@@ -164,11 +188,11 @@ const areaTexto = 'field mt-3 min-h-[9rem] resize-y leading-relaxed'
       </span>
     </div>
 
-    <p v-if="informes.length === 0 && !puedeCrearBorradorInicial" class="text-ink-faint mt-4 text-sm">
+    <p v-if="informes.length === 0 && !puedeCrearBorradorInicial" class="text-ink-faint text-sm" :class="variante === 'tarjeta' && 'mt-4'">
       Todavía no hay informe para este estudio.
     </p>
 
-    <TransitionGroup name="fade-slide" tag="div" class="mt-5 space-y-4">
+    <TransitionGroup name="fade-slide" tag="div" class="space-y-4" :class="variante === 'tarjeta' ? 'mt-5' : ''">
       <article
         v-for="(informe, i) in informes"
         :key="informe.id"
@@ -196,7 +220,7 @@ const areaTexto = 'field mt-3 min-h-[9rem] resize-y leading-relaxed'
             <button type="button" class="btn-ghost !py-2 !text-xs" @click="editandoId = null">Cancelar</button>
           </div>
         </template>
-        <p v-else class="text-ink-soft mt-3 text-sm leading-relaxed whitespace-pre-wrap">{{ informe.contenido }}</p>
+        <div v-else class="informe-prosa !px-0 !py-0 !min-h-0 mt-3 text-sm" v-html="comoHtml(informe.contenido)" />
 
         <div
           v-if="informe.estado === 'Firmado' && informe.hashContenido"
@@ -276,7 +300,18 @@ const areaTexto = 'field mt-3 min-h-[9rem] resize-y leading-relaxed'
     </TransitionGroup>
 
     <div v-if="puedeCrearBorradorInicial" class="mt-5">
-      <p class="meta-label">Redactar hallazgos</p>
+      <RouterLink :to="`/estudios/${estudio.id}/informe`" class="btn-ink !py-2 !text-xs">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+        </svg>
+        Abrir editor de informe
+      </RouterLink>
+      <p class="text-ink-faint mt-2 text-xs">Pantalla completa, con formato, plantillas y exportación a PDF.</p>
+    </div>
+
+    <div v-if="false" class="mt-5">
+      <p class="meta-label mb-3">Redactar hallazgos</p>
+      <SelectorPlantilla :modalidad="estudio.modalidad" @aplicar="(t) => (contenidoNuevo = t)" />
       <textarea v-model="contenidoNuevo" :class="areaTexto" placeholder="Hallazgos, impresión diagnóstica…" />
       <button
         type="button"

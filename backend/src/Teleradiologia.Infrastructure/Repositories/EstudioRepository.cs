@@ -91,7 +91,11 @@ public class EstudioRepository(AppDbContext db) : IEstudioRepository
                 e.Hospital.Nombre,
                 e.SubidoPorId,
                 e.RadiologoAsignadoId,
-                e.InformadoAt == null && e.FechaLimite <= ahora))
+                e.InformadoAt == null && e.FechaLimite <= ahora,
+                e.CreatedAt,
+                e.AsignadoAt,
+                e.InformadoAt,
+                e.FechaLimite))
             .ToListAsync(ct);
     }
 

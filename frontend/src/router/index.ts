@@ -7,6 +7,9 @@ declare module 'vue-router' {
   interface RouteMeta {
     public?: boolean
     roles?: Rol[]
+    // Rompe el contenedor de 1400px y fija el alto al viewport: para pantallas de
+    // trabajo donde la imagen tiene que ganar todos los píxeles posibles.
+    anchoCompleto?: boolean
   }
 }
 
@@ -18,6 +21,12 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
       meta: { public: true },
+    },
+    {
+      path: '/estudios/:id/informe',
+      name: 'redactar-informe',
+      component: () => import('@/views/RedactarInformeView.vue'),
+      meta: { roles: ['Radiologo'] },
     },
     {
       path: '/registro',
@@ -39,6 +48,7 @@ const router = createRouter({
           name: 'estudio-detalle',
           component: () => import('@/views/EstudioDetalleView.vue'),
           props: true,
+          meta: { anchoCompleto: true },
         },
         {
           path: 'resultados',
@@ -53,6 +63,12 @@ const router = createRouter({
           meta: { roles: ['Admin'] },
         },
         {
+          path: 'plantillas',
+          name: 'plantillas',
+          component: () => import('@/views/PlantillasView.vue'),
+          meta: { roles: ['Radiologo'] },
+        },
+        {
           path: 'notificaciones',
           name: 'notificaciones',
           component: () => import('@/views/NotificacionesView.vue'),
@@ -63,6 +79,12 @@ const router = createRouter({
           name: 'configuracion',
           component: () => import('@/views/ConfiguracionView.vue'),
           meta: { roles: ['Admin'] },
+        },
+        {
+          path: 'configuracion/radiologo',
+          name: 'configuracion-radiologo',
+          component: () => import('@/views/ConfiguracionRadiologoView.vue'),
+          meta: { roles: ['Radiologo'] },
         },
         {
           path: 'configuracion/hospitales',

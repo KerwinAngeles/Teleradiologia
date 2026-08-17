@@ -3,10 +3,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
-import { useEstadisticas } from '@/composables/useEstadisticas'
+import { useEstadisticas, type TonoKpi } from '@/composables/useEstadisticas'
 import TarjetaGrafico from '@/components/charts/TarjetaGrafico.vue'
 import GraficoBarras from '@/components/charts/GraficoBarras.vue'
 import GraficoDona from '@/components/charts/GraficoDona.vue'
+import GraficoTendencia from '@/components/charts/GraficoTendencia.vue'
 import { useReloj, formatearRestante } from '@/composables/useReloj'
 import { useDebounce } from '@/composables/useDebounce'
 import Paginacion from '@/components/Paginacion.vue'
@@ -98,7 +99,36 @@ onMounted(() => {
 const esRadiologo = computed(() => auth.usuario?.rol === 'Radiologo')
 
 const usuario = computed(() => auth.usuario)
-const { kpis, dona, panelDona, barras, panelBarras } = useEstadisticas(estadisticas, usuario)
+const {
+  kpis,
+  barras,
+  panelBarras,
+  leyendaBarras,
+  dona,
+  panelDona,
+  puntosTendencia,
+  seriesTendencia,
+  panelTendencia,
+  balanceTendencia,
+} = useEstadisticas(estadisticas, usuario)
+
+// El resplandor de cada KPI codifica su estado, no su posición en la grilla.
+const brilloPorTono: Record<TonoKpi, string> = {
+  neutro: 'var(--color-viz-serie)',
+  atencion: 'var(--color-viz-pendiente)',
+  alerta: 'var(--color-estado-stat)',
+  bien: 'var(--color-viz-informado)',
+}
+
+const totalDona = computed(() => dona.value.reduce((s, d) => s + d.valor, 0))
+
+const notaTendencia = computed(() => {
+  const { entradas, salidas, neto } = balanceTendencia.value
+  if (entradas === 0 && salidas === 0) return undefined
+  if (neto > 0) return `Entraron ${neto} más de los que salieron: la cola creció en estas dos semanas.`
+  if (neto < 0) return `Salieron ${Math.abs(neto)} más de los que entraron: la cola se descargó.`
+  return 'Entró y salió lo mismo: la cola quedó estable.'
+})
 
 async function tomar(id: string) {
   const estudio = estudios.value.find((e) => e.id === id)
@@ -147,8 +177,6 @@ const estadoLabel: Record<Estudio['estado'], string> = {
   Informado: 'Informado',
 }
 
-const brillos = ['from-coral/70', 'from-lilac/70', 'from-aqua/70', 'from-coral/50']
-
 const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 </script>
 
@@ -165,28 +193,127 @@ const formatoFecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <div v-for="(kpi, i) in kpis" :key="kpi.etiqueta" class="glass relative overflow-hidden p-5">
+      <div v-for="kpi in kpis" :key="kpi.etiqueta" class="glass relative overflow-hidden p-5">
         <div
-          class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t to-transparent opacity-60"
-          :class="brillos[i % brillos.length]"
+          aria-hidden="true"
+          class="absolute inset-x-0 bottom-0 h-24"
+          :style="{
+            background: `linear-gradient(to top, color-mix(in srgb, ${brilloPorTono[kpi.tono]} 26%, transparent), transparent)`,
+          }"
         />
         <div class="relative">
           <p class="meta-label">{{ kpi.etiqueta }}</p>
-          <p class="mt-2 text-4xl font-light">{{ kpi.valor }}</p>
+          <p class="mt-2 text-4xl font-light tabular-nums">{{ kpi.valor }}</p>
           <p class="text-ink-faint mt-1 text-xs">{{ kpi.detalle }}</p>
         </div>
       </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <TarjetaGrafico :titulo="panelBarras.titulo" :subtitulo="panelBarras.subtitulo" :datos="barras">
+      <TarjetaGrafico
+        :titulo="panelBarras.titulo"
+        :subtitulo="panelBarras.subtitulo"
+        :leyenda="leyendaBarras"
+      >
         <GraficoBarras :datos="barras" />
+
+        <template #tabla>
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-[var(--color-hairline)]">
+                <th class="meta-label py-1.5 text-left font-semibold">Categoría</th>
+                <th
+                  v-for="serie in leyendaBarras"
+                  :key="serie.clave"
+                  class="meta-label py-1.5 text-right font-semibold"
+                >
+                  {{ serie.etiqueta }}
+                </th>
+                <th class="meta-label py-1.5 text-right font-semibold">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="fila in barras"
+                :key="fila.etiqueta"
+                class="border-b border-[var(--color-hairline)] last:border-0"
+              >
+                <td class="py-1.5 text-xs">{{ fila.etiqueta }}</td>
+                <td
+                  v-for="segmento in fila.segmentos"
+                  :key="segmento.clave"
+                  class="text-ink-soft py-1.5 text-right text-xs tabular-nums"
+                >
+                  {{ segmento.valor }}
+                </td>
+                <td class="py-1.5 text-right text-xs font-medium tabular-nums">{{ fila.total }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
       </TarjetaGrafico>
 
-      <TarjetaGrafico :titulo="panelDona.titulo" :subtitulo="panelDona.subtitulo" :datos="dona">
+      <TarjetaGrafico :titulo="panelDona.titulo" :subtitulo="panelDona.subtitulo">
         <GraficoDona :datos="dona" />
+
+        <template #tabla>
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-[var(--color-hairline)]">
+                <th class="meta-label py-1.5 text-left font-semibold">Prioridad</th>
+                <th class="meta-label py-1.5 text-right font-semibold">Estudios</th>
+                <th class="meta-label py-1.5 text-right font-semibold">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="fila in dona"
+                :key="fila.clave"
+                class="border-b border-[var(--color-hairline)] last:border-0"
+              >
+                <td class="py-1.5 text-xs">{{ fila.etiqueta }}</td>
+                <td class="py-1.5 text-right text-xs tabular-nums">{{ fila.valor }}</td>
+                <td class="text-ink-faint py-1.5 text-right text-xs tabular-nums">
+                  {{ totalDona === 0 ? '0%' : `${Math.round((fila.valor / totalDona) * 100)}%` }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
       </TarjetaGrafico>
     </div>
+
+    <TarjetaGrafico
+      :titulo="panelTendencia.titulo"
+      :subtitulo="panelTendencia.subtitulo"
+      :leyenda="seriesTendencia"
+      :nota="notaTendencia"
+    >
+      <GraficoTendencia :datos="puntosTendencia" :series="seriesTendencia" />
+
+      <template #tabla>
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-[var(--color-hairline)]">
+              <th class="meta-label py-1.5 text-left font-semibold">Día</th>
+              <th class="meta-label py-1.5 text-right font-semibold">{{ seriesTendencia[0].etiqueta }}</th>
+              <th class="meta-label py-1.5 text-right font-semibold">{{ seriesTendencia[1].etiqueta }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="fila in puntosTendencia"
+              :key="fila.fecha"
+              class="border-b border-[var(--color-hairline)] last:border-0"
+            >
+              <td class="py-1.5 text-xs tabular-nums">{{ fila.etiqueta }}</td>
+              <td class="py-1.5 text-right text-xs tabular-nums">{{ fila.entradas }}</td>
+              <td class="py-1.5 text-right text-xs tabular-nums">{{ fila.salidas }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+    </TarjetaGrafico>
 
     <div class="glass flex flex-wrap items-center gap-3 p-4">
       <div class="relative min-w-[220px] flex-1">

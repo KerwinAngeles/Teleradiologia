@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import type { Segmento } from '@/composables/useEstadisticas'
 
-const props = defineProps<{ datos: Segmento[] }>()
+const props = defineProps<{ datos: Segmento[]; unidad?: string }>()
 
 const RADIO = 60
 const GROSOR = 18
@@ -23,8 +23,8 @@ function punto(angulo: number, radio: number) {
   return [CENTRO + radio * Math.cos(rad), CENTRO + radio * Math.sin(rad)]
 }
 
-function anillo(desde: number, hasta: number): string {
-  const rExterno = RADIO
+function anillo(desde: number, hasta: number, expandir: number): string {
+  const rExterno = RADIO + expandir
   const rInterno = RADIO - GROSOR
   const [x1, y1] = punto(desde, rExterno)
   const [x2, y2] = punto(hasta, rExterno)
@@ -41,6 +41,10 @@ function anillo(desde: number, hasta: number): string {
   ].join(' ')
 }
 
+function porcentajeDe(valor: number) {
+  return total.value === 0 ? 0 : Math.round((valor / total.value) * 100)
+}
+
 const arcos = computed<Arco[]>(() => {
   if (total.value === 0) return []
 
@@ -53,17 +57,27 @@ const arcos = computed<Arco[]>(() => {
     const desde = angulo + separacion / 2
     const hasta = angulo + barrido - separacion / 2
     angulo += barrido
+    // El segmento apuntado crece 3px hacia afuera: se distingue sin depender del color.
+    const expandir = resaltado.value === segmento.clave ? 3 : 0
     return {
       ...segmento,
-      d: anillo(desde, Math.max(hasta, desde + 0.1)),
-      porcentaje: Math.round((segmento.valor / total.value) * 100),
+      d: anillo(desde, Math.max(hasta, desde + 0.1), expandir),
+      porcentaje: porcentajeDe(segmento.valor),
     }
   })
 })
 
-function opacidad(etiqueta: string) {
-  return resaltado.value === null || resaltado.value === etiqueta ? 1 : 0.35
-}
+// El centro es el lugar de lectura: en reposo muestra el total y al apuntar un
+// segmento muestra ese segmento, sin obligar a cruzar la vista con la leyenda.
+const foco = computed(() => {
+  const activo = props.datos.find((d) => d.clave === resaltado.value)
+  if (!activo) return { valor: total.value, etiqueta: props.unidad ?? 'estudios' }
+  return { valor: activo.valor, etiqueta: `${activo.etiqueta} · ${porcentajeDe(activo.valor)}%` }
+})
+
+const descripcion = computed(() =>
+  props.datos.map((d) => `${d.etiqueta}: ${d.valor} (${porcentajeDe(d.valor)}%)`).join(', '),
+)
 </script>
 
 <template>
@@ -72,45 +86,55 @@ function opacidad(etiqueta: string) {
   </div>
 
   <div v-else class="flex flex-wrap items-center justify-center gap-6 sm:flex-nowrap sm:justify-start">
-    <svg :viewBox="`0 0 ${CENTRO * 2} ${CENTRO * 2}`" class="h-[140px] w-[140px] flex-none" role="img">
-      <title>Distribución por estado</title>
+    <svg
+      :viewBox="`0 0 ${CENTRO * 2} ${CENTRO * 2}`"
+      class="h-[150px] w-[150px] flex-none overflow-visible"
+      role="img"
+      :aria-label="descripcion"
+    >
       <path
         v-for="arco in arcos"
-        :key="arco.etiqueta"
+        :key="arco.clave"
         :d="arco.d"
         :fill="arco.color"
-        :opacity="opacidad(arco.etiqueta)"
-        class="transition-opacity duration-200"
-        @mouseenter="resaltado = arco.etiqueta"
+        :opacity="resaltado === null || resaltado === arco.clave ? 1 : 0.32"
+        class="transition-[opacity,d] duration-200"
+        @mouseenter="resaltado = arco.clave"
         @mouseleave="resaltado = null"
       />
-      <text :x="CENTRO" :y="CENTRO - 2" text-anchor="middle" class="fill-[var(--color-ink)] text-[1.5rem] font-light">
-        {{ total }}
+      <text
+        :x="CENTRO"
+        :y="CENTRO - 2"
+        text-anchor="middle"
+        class="fill-[var(--color-ink)] text-[1.5rem] font-light tabular-nums"
+      >
+        {{ foco.valor }}
       </text>
       <text
         :x="CENTRO"
         :y="CENTRO + 14"
         text-anchor="middle"
-        class="fill-[var(--color-ink-faint)] text-[0.5rem] tracking-[0.12em] uppercase"
+        class="fill-[var(--color-ink-faint)] text-[0.5rem] tracking-[0.1em] uppercase"
       >
-        estudios
+        {{ foco.etiqueta }}
       </text>
     </svg>
 
-    <ul class="min-w-[9rem] flex-1 space-y-1.5">
-      <li
-        v-for="segmento in datos"
-        :key="segmento.etiqueta"
-        class="flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-white/50"
-        @mouseenter="resaltado = segmento.etiqueta"
-        @mouseleave="resaltado = null"
-      >
-        <span class="h-2.5 w-2.5 flex-none rounded-full" :style="{ background: segmento.color }" />
-        <span class="flex-1 text-xs font-medium">{{ segmento.etiqueta }}</span>
-        <span class="text-ink-soft text-xs tabular-nums">{{ segmento.valor }}</span>
-        <span class="text-ink-faint w-9 text-right text-xs tabular-nums">
-          {{ total === 0 ? '0%' : `${Math.round((segmento.valor / total) * 100)}%` }}
-        </span>
+    <ul class="min-w-[9rem] flex-1 space-y-1">
+      <li v-for="segmento in datos" :key="segmento.clave">
+        <button
+          type="button"
+          class="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-white/50 focus-visible:bg-white/50"
+          @mouseenter="resaltado = segmento.clave"
+          @mouseleave="resaltado = null"
+          @focus="resaltado = segmento.clave"
+          @blur="resaltado = null"
+        >
+          <span class="h-2.5 w-2.5 flex-none rounded-full" :style="{ background: segmento.color }" />
+          <span class="flex-1 text-xs font-medium">{{ segmento.etiqueta }}</span>
+          <span class="text-ink-soft text-xs tabular-nums">{{ segmento.valor }}</span>
+          <span class="text-ink-faint w-9 text-right text-xs tabular-nums">{{ porcentajeDe(segmento.valor) }}%</span>
+        </button>
       </li>
     </ul>
   </div>

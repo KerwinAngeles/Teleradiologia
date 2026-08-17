@@ -3,6 +3,7 @@ import { init as dicomImageLoaderInit } from '@cornerstonejs/dicom-image-loader'
 import {
   init as toolsInit,
   addTool,
+  ArrowAnnotateTool,
   LengthTool,
   PanTool,
   StackScrollTool,
@@ -36,12 +37,17 @@ export function inicializarCornerstone(): Promise<void> {
     addTool(ZoomTool)
     addTool(StackScrollTool)
     addTool(LengthTool)
+    // Mediciones y anotaciones viven solo en la sesión: no hay dónde guardarlas todavía.
+    addTool(ArrowAnnotateTool)
   })()
 
   return inicializacion
 }
 
 // wadouri: descarga el DICOM entero y lo parsea en el cliente, con su profundidad real.
-export function imageIdDeCorte(estudioId: string, orthancInstanceId: string): string {
-  return `wadouri:/api/estudios/${estudioId}/imagenes/${orthancInstanceId}/dicom`
+// En instancias multi-frame el mismo archivo sirve todos los cuadros: `?frame=N` los indexa
+// y el loader reusa el DICOM ya descargado, no lo baja una vez por cuadro.
+export function imageIdDeCorte(estudioId: string, orthancInstanceId: string, cuadro?: number): string {
+  const base = `wadouri:/api/estudios/${estudioId}/imagenes/${orthancInstanceId}/dicom`
+  return cuadro === undefined ? base : `${base}?frame=${cuadro}`
 }

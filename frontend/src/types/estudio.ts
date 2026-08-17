@@ -36,9 +36,15 @@ export interface EstudioEstadistica {
   subidoPorId: string
   radiologoAsignadoId: string | null
   vencido: boolean
+  createdAt: string
+  asignadoAt: string | null
+  informadoAt: string | null
+  fechaLimite: string
 }
 
 export interface ImagenEstudio {
   orthancInstanceId: string
   numeroInstancia: number
+  // 1 en las imágenes fijas; >1 en los cine de ecografía y fluoroscopía.
+  numeroDeCuadros: number
 }

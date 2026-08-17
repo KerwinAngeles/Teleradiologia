@@ -14,7 +14,11 @@ public record OrthancEstudioMetadata(
     DateOnly? PacienteFechaNacimiento,
     SexoPaciente? PacienteSexo);
 
-public record OrthancInstanciaResumen(string OrthancInstanceId, string OrthancSeriesId, int NumeroInstancia);
+public record OrthancInstanciaResumen(
+    string OrthancInstanceId,
+    string OrthancSeriesId,
+    int NumeroInstancia,
+    int NumeroDeCuadros);
 
 public record OrthancImagen(byte[] Bytes, string ContentType);
 

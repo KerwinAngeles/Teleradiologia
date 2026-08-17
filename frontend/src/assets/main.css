@@ -55,8 +55,24 @@
   --chip-stat-bg: rgba(224, 122, 108, 0.28);
   --chip-stat-borde: rgba(192, 57, 43, 0.3);
 
-  /* Serie única de las barras: la longitud ya codifica el valor. */
+  /* Paleta de los gráficos. Separada de la de los chips a propósito: un chip tiñe
+     TEXTO y en oscuro tiene que aclararse para leerse; una barra es una superficie
+     grande y en oscuro tiene que oscurecerse para no deslumbrar. Las dos versiones
+     pasan las comprobaciones de banda de luminosidad, croma, separación bajo
+     daltonismo y contraste contra el fondo. */
   --color-viz-serie: #2a78d6;
+  --color-viz-pendiente: #b8722f;
+  /* Acento del visor sobre superficie temática (subrayado de pestaña). Sobre el
+     escenario negro se usa --color-lilac directo, que ahí sí contrasta. */
+  --color-visor-acento: #7b6bd6;
+  --color-viz-informe: #3d63b8;
+  --color-viz-informado: #1f8a6d;
+
+  /* La prioridad es una escala ordinal, no categorías sueltas: un solo tono que se
+     oscurece con la urgencia. Así se lee el orden sin memorizar la leyenda. */
+  --color-viz-rutina: #e2a067;
+  --color-viz-urgente: #c06f28;
+  --color-viz-stat: #8a3316;
 
   --radius-card: 1.5rem;
 }
@@ -152,6 +168,89 @@
 
   .meta-row:last-child {
     border-bottom: 0;
+  }
+
+  /* ── Estación de trabajo del visor ──────────────────────────────────────
+     El escenario de la imagen es negro en los dos temas. Un marco claro
+     alrededor de una escala de grises falsea la percepción de los grises, así
+     que el tema manda en el cromo —cabecera, rail, toolbar, panel— pero nunca
+     en la caja donde se mira la imagen. */
+  .visor-escenario {
+    background: #0b0b11;
+    color: #e9e9ed;
+  }
+
+  /* Lecturas técnicas del visor: monoespaciado en versalitas, teñido con el
+     lila de la marca, que es el acento del visor en los dos temas. */
+  .visor-kicker {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-lilac);
+  }
+
+  .visor-lectura {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    color: rgba(233, 233, 237, 0.55);
+  }
+
+  /* Herramienta del visor. Vive sobre el escenario oscuro, así que no sigue al
+     tema: sus dos estados se definen contra el negro. */
+  .visor-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(233, 233, 237, 0.82);
+    background: rgba(255, 255, 255, 0.06);
+    transition:
+      background 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .visor-tool:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.13);
+    color: #ffffff;
+  }
+
+  .visor-tool:disabled {
+    opacity: 0.35;
+  }
+
+  .visor-tool-activa {
+    border-color: var(--color-lilac);
+    background: color-mix(in srgb, var(--color-lilac) 22%, transparent);
+    color: #ffffff;
+  }
+
+  /* Pestaña del panel lateral: subrayado de 2px en el activo, como el diseño. */
+  .panel-tab {
+    flex: 1;
+    padding: 0.7rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-soft);
+    border-bottom: 2px solid transparent;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .panel-tab:hover {
+    color: var(--color-ink);
+  }
+
+  .panel-tab-activa {
+    color: var(--color-ink);
+    border-bottom-color: var(--color-visor-acento);
   }
 
   /* Titular editorial */
@@ -676,7 +775,17 @@
     --color-estado-stat: #ff8577;
     --chip-stat-bg: rgba(255, 133, 119, 0.16);
     --chip-stat-borde: rgba(255, 133, 119, 0.32);
-    --color-viz-serie: #6aa8f0;
+
+    /* Los rellenos de los gráficos bajan de luminosidad mientras los chips suben:
+       una superficie grande y clara sobre fondo oscuro deslumbra. */
+    --color-viz-serie: #4a86d4;
+    --color-viz-pendiente: #c9803a;
+    --color-visor-acento: #cbb9ff;
+    --color-viz-informe: #5f86d8;
+    --color-viz-informado: #2fa583;
+    --color-viz-rutina: #7a4a28;
+    --color-viz-urgente: #c17a34;
+    --color-viz-stat: #f0a58f;
 
     --chip-pendiente-bg: rgba(240, 165, 92, 0.16);
     --chip-pendiente-borde: rgba(240, 165, 92, 0.3);
@@ -724,7 +833,15 @@
       --color-estado-stat: #ff8577;
       --chip-stat-bg: rgba(255, 133, 119, 0.16);
       --chip-stat-borde: rgba(255, 133, 119, 0.32);
-      --color-viz-serie: #6aa8f0;
+
+      --color-viz-serie: #4a86d4;
+      --color-viz-pendiente: #c9803a;
+      --color-viz-informe: #5f86d8;
+      --color-viz-informado: #2fa583;
+      --color-viz-rutina: #7a4a28;
+      --color-viz-urgente: #c17a34;
+      --color-viz-stat: #f0a58f;
+      --color-visor-acento: #cbb9ff;
 
       --chip-pendiente-bg: rgba(240, 165, 92, 0.16);
       --chip-pendiente-borde: rgba(240, 165, 92, 0.3);
@@ -737,3 +854,215 @@
     }
   }
 }
+
+@layer components {
+  /* Editor de informes */
+  .boton-formato {
+    display: inline-flex;
+    height: 1.9rem;
+    width: 1.9rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.55rem;
+    color: var(--color-ink-soft);
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  .boton-formato:hover:not(:disabled) {
+    background: var(--color-superficie-suave);
+    color: var(--color-ink);
+  }
+
+  .boton-formato-activo {
+    background: var(--color-ink);
+    color: var(--color-sobre-tinta);
+  }
+
+  .informe-prosa {
+    padding: 2.5rem 3rem;
+    min-height: 22rem;
+    font-size: 0.95rem;
+    line-height: 1.75;
+    color: var(--color-ink);
+  }
+
+  .informe-prosa h2 {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 1.6rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+
+  .informe-prosa h2:first-child { margin-top: 0; }
+
+  .informe-prosa h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 1.1rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .informe-prosa p { margin-bottom: 0.7rem; }
+  .informe-prosa ul { list-style: disc; padding-left: 1.4rem; margin-bottom: 0.7rem; }
+  .informe-prosa ol { list-style: decimal; padding-left: 1.4rem; margin-bottom: 0.7rem; }
+  .informe-prosa li { margin-bottom: 0.2rem; }
+
+  .informe-prosa p.is-editor-empty:first-child::before {
+    content: 'Escribí el informe o aplicá una plantilla…';
+    color: var(--color-ink-faint);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* La hoja del informe: proporción de carta, con encabezado y pie fijos. */
+  .hoja {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-vidrio-solido);
+    border: 1px solid var(--color-vidrio-borde);
+    border-radius: var(--radius-card);
+    box-shadow: 0 24px 60px -32px var(--color-sombra);
+    overflow: hidden;
+  }
+
+  .hoja-encabezado {
+    padding: 2rem 3rem 1.25rem;
+    border-bottom: 2px solid var(--color-ink);
+  }
+
+  .hoja-titulo {
+    font-size: 1.1rem;
+    font-weight: 300;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .hoja-sub {
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  .hoja-datos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 2rem;
+    margin-top: 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .hoja-datos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+
+  .hoja-datos dt {
+    font-size: 0.625rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  .hoja-datos dd { font-size: 0.875rem; margin-top: 0.1rem; }
+
+  .hoja-cuerpo { flex: 1; min-height: 0; }
+
+  .hoja-pie {
+    padding: 1.5rem 3rem 2.25rem;
+    border-top: 1px solid var(--color-hairline);
+  }
+
+  .hoja-firma {
+    margin-left: auto;
+    width: 16rem;
+    text-align: center;
+  }
+
+  .hoja-firma-trazo {
+    height: 4.5rem;
+    width: 100%;
+    object-fit: contain;
+    margin-bottom: 0.25rem;
+  }
+
+  .hoja-firma-linea {
+    height: 4.5rem;
+    border-bottom: 1px solid var(--color-ink);
+    margin-bottom: 0.25rem;
+  }
+
+  .hoja-firma-nombre {
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--color-ink);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .hoja-firma-datos {
+    font-size: 0.6875rem;
+    color: var(--color-ink-faint);
+    margin-top: 0.1rem;
+  }
+
+  .hoja-borrador { color: var(--color-estado-pendiente); font-weight: 600; }
+}
+
+/* Impresión / exportar a PDF. El navegador pagina y numera; acá solo se le saca todo lo
+   que es interfaz y se fuerza tinta sobre papel blanco, sin importar el tema. */
+@media print {
+  @page {
+    size: letter;
+    margin: 14mm 12mm 20mm;
+  }
+
+  .sin-imprimir,
+  .boton-formato,
+  .hoja-cuerpo .sticky {
+    display: none !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .aurora::before { display: none !important; }
+
+  .hoja {
+    background: #ffffff !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .hoja-encabezado { padding: 0 0 0.75rem; border-bottom: 2px solid #000; }
+  .hoja-pie { padding: 1.25rem 0 0; }
+  .informe-prosa { padding: 1.25rem 0; min-height: 0; font-size: 10.5pt; }
+
+  .hoja-titulo,
+  .hoja-datos dd,
+  .hoja-firma-nombre,
+  .informe-prosa { color: #000 !important; }
+
+  .hoja-sub,
+  .hoja-datos dt,
+  .hoja-firma-datos { color: #444 !important; }
+
+  .hoja-firma-nombre,
+  .hoja-firma-linea { border-color: #000 !important; }
+
+  .informe-prosa h2 { border-bottom-color: #999 !important; }
+
+  /* Que una sección no quede partida entre dos páginas. */
+  .informe-prosa h2,
+  .informe-prosa h3 { break-after: avoid; }
+  .informe-prosa p,
+  .informe-prosa li { break-inside: avoid; }
+
+  .hoja-pie { break-inside: avoid; }
+}
+

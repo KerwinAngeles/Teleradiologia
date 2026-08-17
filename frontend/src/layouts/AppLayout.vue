@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import LogoMark from '@/components/LogoMark.vue'
@@ -12,6 +12,11 @@ import { useNotificacionesStore } from '@/stores/notificaciones'
 const auth = useAuthStore()
 const toasts = useToastStore()
 const router = useRouter()
+const route = useRoute()
+
+// La estación de trabajo del visor pide todo el viewport; el resto de las
+// pantallas sigue en la columna de lectura de 1400px.
+const anchoCompleto = computed(() => route.meta.anchoCompleto === true)
 
 const confirmandoSalida = ref(false)
 
@@ -37,7 +42,18 @@ const enlaces = computed(() => {
   ].filter((e) => e.visible)
 })
 
-const esAdmin = computed(() => auth.usuario?.rol === 'Admin')
+// Cada rol tiene su propio panel: el del admin administra el sistema, el del radiólogo
+// su espacio de trabajo (plantillas, tema). El orbe de la barra es el mismo.
+const destinoConfiguracion = computed(() => {
+  switch (auth.usuario?.rol) {
+    case 'Admin':
+      return '/configuracion'
+    case 'Radiologo':
+      return '/configuracion/radiologo'
+    default:
+      return null
+  }
+})
 const recibeNotificaciones = computed(() => auth.usuario?.rol === 'Radiologo' || auth.usuario?.rol === 'Admin')
 
 const notificaciones = useNotificacionesStore()
@@ -61,8 +77,14 @@ function salir() {
 </script>
 
 <template>
-  <div class="aurora min-h-screen">
-    <div class="mx-auto max-w-[1400px] px-4 py-5 sm:px-8 sm:py-7">
+  <div class="aurora" :class="anchoCompleto ? 'flex h-screen flex-col overflow-hidden' : 'min-h-screen'">
+    <div
+      :class="
+        anchoCompleto
+          ? 'flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6'
+          : 'mx-auto max-w-[1400px] px-4 py-5 sm:px-8 sm:py-7'
+      "
+    >
         <!-- relative z-30: .glass trae backdrop-filter, que crea contexto de apilamiento. Sin z-index
              el header se pinta antes que <main> y el desplegable queda debajo del contenido. -->
         <header class="glass relative z-30 flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-5">
@@ -93,8 +115,8 @@ function salir() {
             </div>
             <CampanaNotificaciones v-if="recibeNotificaciones" />
             <RouterLink
-              v-if="esAdmin"
-              to="/configuracion"
+              v-if="destinoConfiguracion"
+              :to="destinoConfiguracion"
               class="btn-orb"
               title="Configuración"
               aria-label="Configuración"
@@ -125,7 +147,7 @@ function salir() {
           </div>
         </header>
 
-        <main class="py-7 sm:py-9">
+        <main :class="anchoCompleto ? 'min-h-0 flex-1 pt-4' : 'py-7 sm:py-9'">
           <RouterView v-slot="{ Component, route }">
             <Transition name="page" mode="out-in">
               <component :is="Component" :key="route.path" />
