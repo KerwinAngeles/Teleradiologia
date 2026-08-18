@@ -52,12 +52,6 @@ function exportarPdf() {
 }
 
 onMounted(cargar)
-
-const resumenHash = computed(() => {
-  const hash = informe.value?.hashContenido
-  if (!hash) return '—'
-  return hash.length <= 16 ? hash : `${hash.slice(0, 8)}…${hash.slice(-8)}`
-})
 </script>
 
 <template>
@@ -123,22 +117,29 @@ const resumenHash = computed(() => {
 
       <HojaInforme
         :hospital-nombre="informe.hospitalNombre"
+        :hospital-provincia="informe.hospitalProvincia"
+        :hospital-municipio="informe.hospitalMunicipio"
         :paciente-nombre="informe.pacienteNombre"
         :paciente-documento="informe.pacienteDocumento"
+        :paciente-sexo="informe.pacienteSexo"
+        :paciente-fecha-nacimiento="informe.pacienteFechaNacimiento"
         :modalidad="informe.modalidad"
+        :descripcion-estudio="informe.descripcionEstudio"
         :fecha-estudio="informe.fechaEstudio"
+        :identificador-estudio="informe.studyInstanceUid"
+        :radiologo-nombre="informe.radiologoNombre"
+        :es-adenda="informe.esAdenda"
         :firmado-at="informe.firmadoAt"
         :firmante-nombre="informe.firmanteNombre ?? informe.radiologoNombre"
         :firmante-matricula="informe.firmanteMatricula"
         :firma-imagen="informe.firmaImagen"
+        :codigo-verificacion="informe.hashContenido"
+        :algoritmo-firma="informe.algoritmoFirma"
       >
         <!-- v-html sobre contenido saneado con la lista compartida de etiquetas. -->
         <div class="informe-prosa" v-html="cuerpo" />
       </HojaInforme>
 
-      <p v-if="firmado && informe.hashContenido" class="text-ink-faint sin-imprimir mt-4 text-center font-mono text-[0.6875rem]">
-        {{ informe.algoritmoFirma }} · {{ resumenHash }}
-      </p>
     </div>
   </div>
 </template>

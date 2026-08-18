@@ -193,14 +193,24 @@ function exportarPdf() {
 
       <HojaInforme
         :hospital-nombre="estudio?.hospitalNombre"
+        :hospital-provincia="estudio?.hospitalProvincia"
+        :hospital-municipio="estudio?.hospitalMunicipio"
         :paciente-nombre="estudio?.pacienteNombre"
         :paciente-documento="estudio?.pacienteDocumento"
+        :paciente-sexo="estudio?.pacienteSexo"
+        :paciente-fecha-nacimiento="estudio?.pacienteFechaNacimiento"
         :modalidad="estudio?.modalidad"
+        :descripcion-estudio="estudio?.descripcionEstudio"
         :fecha-estudio="estudio?.fechaEstudio"
+        :identificador-estudio="estudio?.studyInstanceUid"
+        :radiologo-nombre="auth.usuario?.nombreCompleto"
+        :es-adenda="esAdenda"
         :firmado-at="informe?.firmadoAt"
         :firmante-nombre="informe?.firmanteNombre ?? auth.usuario?.nombreCompleto"
         :firmante-matricula="informe?.firmanteMatricula ?? auth.usuario?.matricula"
         :firma-imagen="informe?.firmaImagen"
+        :codigo-verificacion="informe?.hashContenido"
+        :algoritmo-firma="informe?.algoritmoFirma"
       >
         <EditorInforme v-model="contenido" :editable="!soloLectura" />
       </HojaInforme>
