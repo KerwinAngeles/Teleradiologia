@@ -1317,9 +1317,25 @@
   .hoja .informe-prosa p,
   .hoja .informe-prosa li { break-inside: avoid; }
 
-  * {
+  /* En papel pinta la hoja y nada más. print-color-adjust: exact obliga al
+     navegador a respetar todos los fondos, así que sin esto el lienzo oscuro del
+     tema se imprimía como una franja negra al costado del documento. */
+  body * {
+    background: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .hoja,
+  .hoja-encabezado,
+  .hoja-pie {
+    background: #ffffff !important;
+  }
+
+  /* El ajuste de color se limita al documento: es el único que tiene colores que
+     de verdad deben llegar al papel. */
+  .hoja,
+  .hoja * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    backdrop-filter: none !important;
   }
 }

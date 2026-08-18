@@ -182,7 +182,7 @@ function exportarPdf() {
     <p v-else-if="error" class="py-24 text-center text-sm text-red-700">{{ error }}</p>
 
     <!-- La hoja: mismo layout en pantalla y en papel. -->
-    <div v-else class="mx-auto max-w-[1100px] px-5 py-8">
+    <div v-else class="mx-auto max-w-[1100px] px-5 py-8 print:max-w-none print:p-0">
       <div class="sin-imprimir mb-4">
         <SelectorPlantilla
           v-if="!soloLectura"

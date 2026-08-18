@@ -99,7 +99,7 @@ onMounted(cargar)
     <p v-if="cargando" class="text-ink-faint py-24 text-center text-sm">Cargando informe…</p>
     <p v-else-if="error" class="py-24 text-center text-sm text-red-700">{{ error }}</p>
 
-    <div v-else-if="informe" class="mx-auto max-w-[1100px] px-5 py-8">
+    <div v-else-if="informe" class="mx-auto max-w-[1100px] px-5 py-8 print:max-w-none print:p-0">
       <div
         v-if="verificacion"
         class="sin-imprimir mb-4 rounded-[0.9rem] px-4 py-3 text-sm"

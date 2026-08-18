@@ -56,13 +56,22 @@ const estadoLabel = computed(() => {
   return props.esAdenda ? 'Adenda' : 'Informe final'
 })
 
+// Un DICOM sin fecha de nacimiento se guarda con el valor por defecto (año 1), que
+// impreso queda como «31/12/1». Todo lo anterior a 1900 se trata como desconocido.
+function fechaNacimientoValida(valor?: string | null): Date | null {
+  if (!valor) return null
+  const fecha = new Date(valor)
+  if (Number.isNaN(fecha.getTime()) || fecha.getFullYear() < 1900) return null
+  return fecha
+}
+
 // La edad se calcula al momento del estudio y no al de hoy: es la que corresponde
 // al acto médico que se está informando.
 const sexoEdad = computed(() => {
   const sexo = props.pacienteSexo ? props.pacienteSexo.charAt(0).toUpperCase() : null
-  const nacimiento = props.pacienteFechaNacimiento ? new Date(props.pacienteFechaNacimiento) : null
+  const nacimiento = fechaNacimientoValida(props.pacienteFechaNacimiento)
 
-  if (!nacimiento || Number.isNaN(nacimiento.getTime())) return sexo ?? '—'
+  if (!nacimiento) return sexo ?? '—'
 
   const referencia = props.fechaEstudio ? new Date(props.fechaEstudio) : new Date()
   let edad = referencia.getFullYear() - nacimiento.getFullYear()
@@ -74,9 +83,8 @@ const sexoEdad = computed(() => {
 })
 
 const nacimiento = computed(() => {
-  if (!props.pacienteFechaNacimiento) return '—'
-  const fecha = new Date(props.pacienteFechaNacimiento)
-  return Number.isNaN(fecha.getTime()) ? '—' : formatoFecha.format(fecha)
+  const fecha = fechaNacimientoValida(props.pacienteFechaNacimiento)
+  return fecha ? formatoFecha.format(fecha) : '—'
 })
 
 const institucion = computed(
