@@ -920,6 +920,23 @@
   }
 
   /* La hoja del informe: proporción de carta, con encabezado y pie fijos. */
+  /* Pad de firma. El lienzo es papel en los dos temas, igual que la hoja donde va a
+     terminar impresa la firma: si el pad fuera oscuro el radiólogo firmaría contra un
+     fondo que no existe en el documento final. */
+  .pad-firma-lienzo {
+    background: #ffffff;
+  }
+
+  .pad-firma-limpiar {
+    background: rgba(20, 19, 26, 0.06);
+    color: #3f424d;
+    transition: background 0.15s ease;
+  }
+
+  .pad-firma-limpiar:hover {
+    background: rgba(20, 19, 26, 0.12);
+  }
+
   /* ── Hoja del informe ────────────────────────────────────────────────────
      Documento clínico, no interfaz: paleta propia fija, tipografía en puntos y
      medidas de papel. No sigue al tema porque lo que se ve en pantalla tiene que
