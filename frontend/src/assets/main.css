@@ -920,103 +920,356 @@
   }
 
   /* La hoja del informe: proporción de carta, con encabezado y pie fijos. */
+  /* Pad de firma. El lienzo es papel en los dos temas, igual que la hoja donde va a
+     terminar impresa la firma: si el pad fuera oscuro el radiólogo firmaría contra un
+     fondo que no existe en el documento final. */
+  .pad-firma-lienzo {
+    background: #ffffff;
+  }
+
+  .pad-firma-limpiar {
+    background: rgba(20, 19, 26, 0.06);
+    color: #3f424d;
+    transition: background 0.15s ease;
+  }
+
+  .pad-firma-limpiar:hover {
+    background: rgba(20, 19, 26, 0.12);
+  }
+
+  /* ── Hoja del informe ────────────────────────────────────────────────────
+     Documento clínico, no interfaz: paleta propia fija, tipografía en puntos y
+     medidas de papel. No sigue al tema porque lo que se ve en pantalla tiene que
+     ser exactamente lo que sale impreso; una hoja oscura en modo noche mentiría
+     sobre el PDF.
+
+     La cabecera y el pie se repiten en todas las páginas: van en el thead y el
+     tfoot de una tabla de una sola celda, que es lo único que los navegadores
+     repiten al paginar, y en impresión se fijan con position:fixed dentro de la
+     banda que esos espaciadores reservan. */
   .hoja {
-    display: flex;
-    flex-direction: column;
-    background: var(--color-vidrio-solido);
-    border: 1px solid var(--color-vidrio-borde);
+    --hoja-tinta: #292b31;
+    --hoja-tinta-2: #3f424d;
+    --hoja-apagado: #595d6c;
+    --hoja-tenue: #75798c;
+    --hoja-linea: #cfd3e5;
+    --hoja-linea-suave: #e4e7f5;
+    --hoja-acento: #5d5294;
+    --hoja-acento-fondo: #f5f4ff;
+
+    background: #ffffff;
+    color: var(--hoja-tinta);
+    font-size: 10.5pt;
+    line-height: 1.5;
     border-radius: var(--radius-card);
     box-shadow: 0 24px 60px -32px var(--color-sombra);
+    padding: 0.55in;
     overflow: hidden;
   }
 
+  .hoja-marco { width: 100%; border-collapse: collapse; }
+  .hoja-marco td,
+  .hoja-marco th { padding: 0; text-align: left; font-weight: inherit; }
+
+  /* Cabecera repetida */
   .hoja-encabezado {
-    padding: 2rem 3rem 1.25rem;
-    border-bottom: 2px solid var(--color-ink);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 7pt;
+    border-bottom: 1px solid var(--hoja-linea);
+  }
+
+  .hoja-marca {
+    width: 30pt;
+    height: 30pt;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hoja-acento);
+    border-radius: 4px;
+    font-size: 12pt;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--hoja-acento);
+  }
+
+  .hoja-institucion {
+    font-size: 11.5pt;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .hoja-servicio {
+    font-size: 7.5pt;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--hoja-tenue);
+  }
+
+  /* Etiqueta en versalitas: se repite en toda la hoja */
+  .hoja-rotulo {
+    font-size: 7.5pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hoja-tenue);
   }
 
   .hoja-titulo {
-    font-size: 1.1rem;
-    font-weight: 300;
+    margin: 4pt 0 0;
+    font-size: 19pt;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--hoja-tinta);
+  }
+
+  .hoja-kicker {
+    font-size: 7.5pt;
     letter-spacing: 0.14em;
     text-transform: uppercase;
+    color: var(--hoja-acento);
   }
 
-  .hoja-sub {
-    font-size: 0.6875rem;
-    letter-spacing: 0.1em;
+  .hoja-estado {
+    border: 1px solid var(--hoja-acento);
+    border-radius: 4px;
+    padding: 3pt 9pt;
+    font-size: 8pt;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--color-ink-faint);
+    color: var(--hoja-acento);
+    white-space: nowrap;
   }
 
+  /* Grilla de identificación */
   .hoja-datos {
+    margin: 14pt 0 0;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem 2rem;
-    margin-top: 1.25rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1.5px solid var(--hoja-tinta);
+    border-bottom: 1px solid var(--hoja-linea);
+    break-inside: avoid;
   }
 
-  @media (min-width: 640px) {
-    .hoja-datos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .hoja-datos > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2pt;
+    padding: 8pt 12pt;
+    border-right: 1px solid var(--hoja-linea-suave);
   }
+
+  .hoja-datos > div:nth-child(4n) { border-right: 0; padding-right: 0; }
+  .hoja-datos > div:nth-child(4n + 1) { padding-left: 0; }
+  .hoja-datos > div:nth-child(n + 5) { border-top: 1px solid var(--hoja-linea-suave); }
 
   .hoja-datos dt {
-    font-size: 0.625rem;
-    letter-spacing: 0.1em;
+    font-size: 7pt;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--color-ink-faint);
+    color: var(--hoja-tenue);
   }
 
-  .hoja-datos dd { font-size: 0.875rem; margin-top: 0.1rem; }
+  .hoja-datos dd {
+    margin: 0;
+    font-size: 10.5pt;
+    color: var(--hoja-tinta);
+  }
 
-  .hoja-cuerpo { flex: 1; min-height: 0; }
+  .hoja-marca-bloque { display: flex; align-items: center; gap: 9pt; }
+  .hoja-derecha { text-align: right; }
+  .hoja-codigo-cabecera { font-size: 9.5pt; }
+  .hoja-cifra { font-variant-numeric: tabular-nums; }
 
-  .hoja-pie {
-    padding: 1.5rem 3rem 2.25rem;
-    border-top: 1px solid var(--color-hairline);
+  .hoja-portada {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-top: 16pt;
+  }
+
+  .hoja-portada-sub { margin-top: 3pt; font-size: 10pt; color: var(--hoja-apagado); }
+  .hoja-portada-fecha { font-size: 10pt; font-variant-numeric: tabular-nums; }
+
+  .hoja-portada-estado {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5pt;
+    text-align: right;
+  }
+
+  .hoja-verificacion-texto { margin-top: 3pt; }
+  .hoja-pie-texto { max-width: 330pt; }
+
+  .hoja-cuerpo { padding-top: 4pt; }
+
+  /* Caja de acento: impresión diagnóstica, avisos */
+  .hoja-caja {
+    margin-top: 16pt;
+    border: 1px solid var(--hoja-linea);
+    border-left: 3px solid var(--hoja-acento);
+    border-radius: 4px;
+    padding: 11pt 13pt;
+    break-inside: avoid;
+  }
+
+  .hoja-caja-titulo {
+    font-size: 9pt;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hoja-acento);
+    margin-bottom: 7pt;
+  }
+
+  .hoja-nota {
+    margin-top: 14pt;
+    break-inside: avoid;
+  }
+
+  .hoja-nota p {
+    font-size: 9pt;
+    color: var(--hoja-apagado);
+    margin: 4pt 0 0;
+  }
+
+  /* Bloque de firma */
+  .hoja-validacion {
+    margin-top: 26pt;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32pt;
+    break-inside: avoid;
+  }
+
+  .hoja-verificacion {
+    flex: 1;
+    max-width: 250pt;
+    font-size: 8.5pt;
+    color: var(--hoja-apagado);
+    line-height: 1.45;
+  }
+
+  .hoja-codigo {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    color: var(--hoja-tinta-2);
+    word-break: break-all;
   }
 
   .hoja-firma {
-    margin-left: auto;
-    width: 16rem;
+    flex: 0 0 232pt;
     text-align: center;
   }
 
   .hoja-firma-trazo {
-    height: 4.5rem;
+    height: 34pt;
     width: 100%;
     object-fit: contain;
-    margin-bottom: 0.25rem;
+    object-position: center bottom;
   }
 
-  .hoja-firma-linea {
-    height: 4.5rem;
-    border-bottom: 1px solid var(--color-ink);
-    margin-bottom: 0.25rem;
+  .hoja-firma-linea { height: 34pt; }
+
+  .hoja-firma-datos {
+    border-top: 1px solid var(--hoja-tinta);
+    padding-top: 5pt;
   }
 
   .hoja-firma-nombre {
-    padding-top: 0.4rem;
-    border-top: 1px solid var(--color-ink);
-    font-size: 0.875rem;
+    font-size: 11pt;
     font-weight: 500;
+    color: var(--hoja-tinta);
   }
 
-  .hoja-firma-datos {
-    font-size: 0.6875rem;
-    color: var(--color-ink-faint);
-    margin-top: 0.1rem;
+  .hoja-firma-detalle {
+    font-size: 9pt;
+    color: var(--hoja-apagado);
   }
 
-  .hoja-borrador { color: var(--color-estado-pendiente); font-weight: 600; }
+  .hoja-firma-sello {
+    font-size: 8pt;
+    color: var(--hoja-tenue);
+    margin-top: 2pt;
+  }
+
+  .hoja-borrador { color: #a04a1f; font-weight: 500; }
+
+  /* Pie repetido */
+  .hoja-pie {
+    padding-top: 6pt;
+    border-top: 1px solid var(--hoja-linea);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20pt;
+    font-size: 7.5pt;
+    color: var(--hoja-tenue);
+    line-height: 1.4;
+  }
+
+  /* El cuerpo del informe es HTML libre del editor: los títulos que escriba el
+     radiólogo toman el gallo y las versalitas del diseño, así un informe hecho con
+     las plantillas sale seccionado sin que el modelo de datos cambie. */
+  .hoja .informe-prosa {
+    padding: 0;
+    min-height: 0;
+    font-size: 10.5pt;
+    color: var(--hoja-tinta);
+  }
+
+  .hoja .informe-prosa h2 {
+    display: flex;
+    align-items: center;
+    gap: 8pt;
+    margin: 18pt 0 6pt;
+    border: 0;
+    padding: 0;
+    font-size: 9pt;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hoja-acento);
+  }
+
+  .hoja .informe-prosa h2::before {
+    content: '';
+    width: 14pt;
+    height: 1.5px;
+    flex: none;
+    background: var(--hoja-acento);
+  }
+
+  .hoja .informe-prosa h2:first-child { margin-top: 0; }
+
+  .hoja .informe-prosa h3 {
+    margin: 12pt 0 4pt;
+    font-size: 9.5pt;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--hoja-tinta);
+  }
+
+  .hoja .informe-prosa p { margin: 0 0 7pt; orphans: 3; widows: 3; }
+  .hoja .informe-prosa li { margin-bottom: 3pt; }
 }
 
-/* Impresión / exportar a PDF. El navegador pagina y numera; acá solo se le saca todo lo
-   que es interfaz y se fuerza tinta sobre papel blanco, sin importar el tema. */
+/* Impresión / exportar a PDF. La hoja ya está maquetada en puntos con su propia
+   paleta, así que acá solo se le saca el cromo de la aplicación y se resuelve la
+   repetición de cabecera y pie en cada página. */
 @media print {
   @page {
-    size: letter;
-    margin: 14mm 12mm 20mm;
+    /* Sin margen: no le dejamos a Chrome caja donde dibujar su fecha y su URL.
+       El margen visual lo pone el padding de la hoja y los espaciadores. */
+    margin: 0;
   }
 
   .sin-imprimir,
@@ -1027,42 +1280,62 @@
 
   html, body {
     background: #ffffff !important;
-    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .aurora::before { display: none !important; }
 
   .hoja {
-    background: #ffffff !important;
-    border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    padding: 0 0.55in !important;
   }
 
-  .hoja-encabezado { padding: 0 0 0.75rem; border-bottom: 2px solid #000; }
-  .hoja-pie { padding: 1.25rem 0 0; }
-  .informe-prosa { padding: 1.25rem 0; min-height: 0; font-size: 10.5pt; }
+  /* El thead y el tfoot se repiten en cada página impresa: son la única forma de
+     reservar la banda donde van la cabecera y el pie fijos. El padding vertical de
+     la hoja no sirve para eso porque se consume una sola vez, en la primera página. */
+  .hoja-espacio-encabezado { height: 0.95in; }
+  .hoja-espacio-pie { height: 0.75in; }
 
-  .hoja-titulo,
-  .hoja-datos dd,
-  .hoja-firma-nombre,
-  .informe-prosa { color: #000 !important; }
+  .hoja-encabezado,
+  .hoja-pie {
+    position: fixed;
+    left: 0;
+    right: 0;
+    padding-left: 0.55in;
+    padding-right: 0.55in;
+    background: #ffffff;
+  }
 
-  .hoja-sub,
-  .hoja-datos dt,
-  .hoja-firma-datos { color: #444 !important; }
-
-  .hoja-firma-nombre,
-  .hoja-firma-linea { border-color: #000 !important; }
-
-  .informe-prosa h2 { border-bottom-color: #999 !important; }
+  .hoja-encabezado { top: 0; padding-top: 0.3in; }
+  .hoja-pie { bottom: 0; padding-bottom: 0.3in; }
 
   /* Que una sección no quede partida entre dos páginas. */
-  .informe-prosa h2,
-  .informe-prosa h3 { break-after: avoid; }
-  .informe-prosa p,
-  .informe-prosa li { break-inside: avoid; }
+  .hoja .informe-prosa h2,
+  .hoja .informe-prosa h3 { break-after: avoid; }
+  .hoja .informe-prosa p,
+  .hoja .informe-prosa li { break-inside: avoid; }
 
-  .hoja-pie { break-inside: avoid; }
+  /* En papel pinta la hoja y nada más. print-color-adjust: exact obliga al
+     navegador a respetar todos los fondos, así que sin esto el lienzo oscuro del
+     tema se imprimía como una franja negra al costado del documento. */
+  body * {
+    background: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .hoja,
+  .hoja-encabezado,
+  .hoja-pie {
+    background: #ffffff !important;
+  }
+
+  /* El ajuste de color se limita al documento: es el único que tiene colores que
+     de verdad deben llegar al papel. */
+  .hoja,
+  .hoja * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
-

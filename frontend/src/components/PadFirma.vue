@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const props = defineProps<{ nombre: string }>()
 const emit = defineEmits<{ cambio: [firma: string | null] }>()
@@ -35,10 +35,12 @@ function limpiarLienzo() {
   ctx.clearRect(0, 0, lienzo.value.width, lienzo.value.height)
 }
 
-function tintaActual(): string {
-  // El trazo sigue al tema: en modo oscuro una firma negra sería invisible.
-  return getComputedStyle(document.documentElement).getPropertyValue('--color-ink').trim() || '#14131a'
-}
+// La firma no es interfaz: es contenido del documento. Queda embebida para siempre
+// en una hoja blanca que se imprime, así que la tinta es fija y oscura pase lo que
+// pase con el tema. Lo que se adapta es el papel del pad, no el trazo: cuando esto
+// seguía a --color-ink, firmar en modo oscuro guardaba un trazo casi blanco que
+// desaparecía en el PDF.
+const TINTA_FIRMA = '#14131a'
 
 function posicion(evento: PointerEvent) {
   const caja = lienzo.value!.getBoundingClientRect()
@@ -63,7 +65,7 @@ function mover(evento: PointerEvent) {
 
   const actual = posicion(evento)
 
-  ctx.strokeStyle = tintaActual()
+  ctx.strokeStyle = TINTA_FIRMA
   ctx.lineWidth = 2.4
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
@@ -106,7 +108,7 @@ function dibujarNombre(estilo: (typeof estilos)[number]) {
 
   limpiarLienzo()
 
-  ctx.fillStyle = tintaActual()
+  ctx.fillStyle = TINTA_FIRMA
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
 
@@ -134,9 +136,6 @@ watch(texto, () => {
   }
 })
 
-// El tema puede cambiar con la firma ya trazada: se redibuja para que no quede invisible.
-let observador: MutationObserver | null = null
-
 onMounted(async () => {
   try {
     await Promise.all(estilos.map((e) => document.fonts.load(`64px "${e.id}"`)))
@@ -145,17 +144,7 @@ onMounted(async () => {
     // Sin las fuentes cargadas el navegador cae a la cursiva del sistema.
   }
   fuentesListas.value = true
-
-  observador = new MutationObserver(() => {
-    if (estiloElegido.value) {
-      const estilo = estilos.find((e) => e.id === estiloElegido.value)
-      if (estilo) dibujarNombre(estilo)
-    }
-  })
-  observador.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 })
-
-onBeforeUnmount(() => observador?.disconnect())
 </script>
 
 <template>
@@ -215,10 +204,8 @@ onBeforeUnmount(() => observador?.disconnect())
         ref="lienzo"
         :width="ANCHO"
         :height="ALTO"
-        class="w-full rounded-[1.1rem] border border-dashed bg-[var(--color-campo)]"
-        :class="[
-          modo === 'trazar' ? 'cursor-crosshair border-[var(--color-borde-fuerte)]' : 'border-[var(--color-borde)]',
-        ]"
+        class="pad-firma-lienzo w-full rounded-[1.1rem] border border-dashed"
+        :class="[modo === 'trazar' ? 'cursor-crosshair border-[#8b8697]' : 'border-[#cfd3e5]']"
         @pointerdown="empezar"
         @pointermove="mover"
         @pointerup="terminar"
@@ -227,7 +214,7 @@ onBeforeUnmount(() => observador?.disconnect())
 
       <p
         v-if="!tieneTrazo"
-        class="text-ink-faint pointer-events-none absolute inset-0 flex items-center justify-center text-sm"
+        class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-[#75798c]"
       >
         {{ modo === 'trazar' ? 'Dibujá tu firma acá' : 'Elegí un estilo para generarla' }}
       </p>
@@ -236,7 +223,7 @@ onBeforeUnmount(() => observador?.disconnect())
         <button
           v-if="tieneTrazo"
           type="button"
-          class="btn-ghost !px-3 !py-1.5 !text-xs"
+          class="pad-firma-limpiar rounded-full px-3 py-1.5 text-xs font-medium"
           @click="limpiar"
         >
           Limpiar

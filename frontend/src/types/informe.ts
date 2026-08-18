@@ -35,6 +35,11 @@ export interface InformeListado {
 }
 
 export interface InformeDetalle extends InformeListado {
+  pacienteSexo: string
+  pacienteFechaNacimiento: string
+  hospitalProvincia: string | null
+  hospitalMunicipio: string | null
+  studyInstanceUid: string
   descripcionEstudio: string | null
   contenido: string
   hashContenido: string | null
