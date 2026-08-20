@@ -7,8 +7,10 @@ público servido por nginx, con Postgres, Orthanc y GoTrue solo en la red intern
 
 - **DNS.** Un registro `A` de `teleradiologia.tu-dominio.com` apuntando a la IP de la VPS.
   Sin esto Coolify no puede emitir el certificado.
-- **SMTP real.** Hace falta host, puerto **465**, usuario y contraseña. El puerto 587 no sirve:
-  `SmtpEmailSender` solo implementa TLS directo, no STARTTLS.
+- **SMTP real.** Host, puerto, usuario y contraseña. Sirve tanto el 465 (TLS directo) como el
+  587 (STARTTLS): con `SMTP_MODO_TLS=Auto` el puerto decide. Los errores de envío se registran
+  pero no interrumpen la operación, así que un SMTP mal configurado falla en silencio — si los
+  correos no llegan, mirá los logs del contenedor `api`.
 - **Disco.** Un TC de 361 cortes ronda los 180 MB en el volumen de Orthanc. Calculá el volumen
   esperado antes de elegir el plan de la VPS.
 - **RAM.** Si Coolify compila en la VPS, la etapa de build baja el SDK de .NET (>1 GB) y corre
@@ -21,12 +23,12 @@ recuperar después.
 
 ```bash
 # Contraseñas de servicio
-openssl rand -base64 24   # POSTGRES_PASSWORD
-openssl rand -base64 24   # ORTHANC_PASSWORD
-openssl rand -base64 24   # SUPABASE_DB_PASSWORD
+openssl rand -hex 24   # POSTGRES_PASSWORD
+openssl rand -hex 24   # ORTHANC_PASSWORD
+openssl rand -hex 24   # SUPABASE_DB_PASSWORD
 
 # Secreto con el que GoTrue firma los tokens y la API los valida
-openssl rand -base64 48   # SUPABASE_JWT_SECRET
+openssl rand -hex 32   # SUPABASE_JWT_SECRET
 ```
 
 ### La clave de firma de informes

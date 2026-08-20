@@ -137,10 +137,9 @@ services:
       Firma__ClavePrivadaPem: ${FIRMA_CLAVE_PRIVADA_PEM:?falta FIRMA_CLAVE_PRIVADA_PEM}
 
       Email__SmtpHost: ${SMTP_HOST:?falta SMTP_HOST}
-      # 465 y no 587: SmtpEmailSender solo sabe TLS-directo (SslOnConnect) o texto plano — no
-      # implementa STARTTLS, que es lo que usa el 587. Ver la nota en el README.
+      # Con ModoTls=Auto el puerto decide el TLS: 465 arranca cifrado, 587/2525 suben con STARTTLS.
       Email__SmtpPort: ${SMTP_PORT:-465}
-      Email__UseSsl: ${SMTP_USE_SSL:-true}
+      Email__ModoTls: ${SMTP_MODO_TLS:-Auto}
       Email__Username: ${SMTP_USERNAME:-}
       Email__Password: ${SMTP_PASSWORD:-}
       Email__FromAddress: ${SMTP_FROM_ADDRESS:?falta SMTP_FROM_ADDRESS}
