@@ -109,6 +109,8 @@ services:
       Supabase__Issuer: ''
       Email__SmtpHost: 'mailpit'
       Email__SmtpPort: '1025'
+      # Mailpit no ofrece TLS: sin esto Auto intentaría STARTTLS y no habría correo en dev.
+      Email__ModoTls: 'None'
       Email__FromAddress: 'no-reply@teleradiologia.local'
       Email__FromName: 'Teleradiología'
     ports:

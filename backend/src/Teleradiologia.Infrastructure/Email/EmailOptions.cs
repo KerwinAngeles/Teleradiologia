@@ -8,7 +8,9 @@ public class EmailOptions
 
     public int SmtpPort { get; set; } = 1025;
 
-    public bool UseSsl { get; set; }
+    // SslOnConnect | StartTls | None | Auto. Auto deduce del puerto: 465 es TLS directo,
+    // cualquier otro es STARTTLS. Solo hace falta fijarlo para un servidor sin TLS (None).
+    public string ModoTls { get; set; } = "Auto";
 
     public string? Username { get; set; }
 
