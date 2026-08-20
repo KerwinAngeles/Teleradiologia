@@ -22,8 +22,7 @@ public class SmtpEmailSender(IOptions<EmailOptions> options, ILogger<SmtpEmailSe
         using var client = new SmtpClient();
         try
         {
-            var socketOptions = _options.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.None;
-            await client.ConnectAsync(_options.SmtpHost, _options.SmtpPort, socketOptions, ct);
+            await client.ConnectAsync(_options.SmtpHost, _options.SmtpPort, ResolverModoTls(), ct);
 
             if (!string.IsNullOrEmpty(_options.Username))
             {
@@ -39,4 +38,14 @@ public class SmtpEmailSender(IOptions<EmailOptions> options, ILogger<SmtpEmailSe
             logger.LogError(ex, "No se pudo enviar el email a {Destinatario}: {Asunto}", destinatarioEmail, asunto);
         }
     }
+
+    // El 465 arranca en TLS; el 587 y el 2525 conectan en claro y suben con STARTTLS. Un
+    // proveedor que solo ofrezca 587 quedaba fuera mientras esto era un booleano.
+    private SecureSocketOptions ResolverModoTls() => _options.ModoTls.ToLowerInvariant() switch
+    {
+        "sslonconnect" => SecureSocketOptions.SslOnConnect,
+        "starttls" => SecureSocketOptions.StartTls,
+        "none" => SecureSocketOptions.None,
+        _ => _options.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls,
+    };
 }

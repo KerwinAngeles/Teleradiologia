@@ -8,10 +8,15 @@ export interface Estudio {
   id: string
   pacienteNombre: string
   pacienteDocumento: string
+  pacienteSexo: string
+  pacienteFechaNacimiento: string
   modalidad: string
   descripcionEstudio: string | null
   hospitalId: string
   hospitalNombre: string
+  hospitalProvincia: string | null
+  hospitalMunicipio: string | null
+  studyInstanceUid: string
   fechaEstudio: string
   estado: EstadoEstudio
   prioridad: PrioridadEstudio

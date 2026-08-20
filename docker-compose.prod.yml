@@ -1,13 +1,16 @@
 # Stack de producción — pensado para desplegarse en Coolify.
 #
 # Diferencias clave contra docker-compose.yml (que es solo para desarrollo local):
-#   · Postgres y Orthanc NO publican puertos. En una VPS, `ports:` es internet abierto: el visor
-#     web de Orthanc dejaría navegar estudios de pacientes sin pasar por la API ni la auditoría.
-#     Se hablan por la red interna de compose, igual que en dev (Host=postgres, http://orthanc:8042).
+#   · Postgres, Orthanc y GoTrue NO publican puertos. En una VPS, `ports:` es internet abierto: el
+#     visor web de Orthanc dejaría navegar estudios de pacientes sin pasar por la API ni la
+#     auditoría. Se hablan por la red interna de compose, igual que en dev.
 #   · Nada de secretos literales: todo sale de variables de entorno de Coolify (ver .env.prod.example).
 #     Las marcadas con `:?` hacen fallar el arranque si faltan, en vez de levantar algo inseguro.
 #   · No hay Mailpit: es un atrapa-emails de desarrollo. Acá va un SMTP real.
 #   · El único servicio que se expone es `frontend` — nginx sirve la SPA y proxea /api al API.
+#
+# El esquema de la base NO se crea solo: el proyecto es database-first. Después del primer
+# arranque hay que aplicar db/schema.sql contra el Postgres.
 #
 # `image:` + `build:` juntos es intencional: si Coolify construye en la VPS, etiqueta el
 # resultado con ese nombre; si preferís construir en CI (ver .github/workflows/deploy.yml),
@@ -42,6 +45,63 @@ services:
       # Ojo con el tamaño: un TC de 361 cortes ronda los 180 MB. Este volumen necesita disco y backup.
       - orthanc-data:/var/lib/orthanc/db
 
+  # Base propia de GoTrue, separada de la nuestra: las credenciales no viven en la base clínica.
+  supabase-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: supabase_auth
+      POSTGRES_USER: supabase_auth_admin
+      POSTGRES_PASSWORD: ${SUPABASE_DB_PASSWORD:?falta SUPABASE_DB_PASSWORD}
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./docker/supabase/01-init-auth.sql:/docker-entrypoint-initdb.d/01-init-auth.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U supabase_auth_admin -d supabase_auth']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Supabase self-hosted, solo la pieza de auth. Sin `ports:`: el navegador nunca le habla
+  # directo — el frontend autentica contra nuestra API, que es la que llama a GoTrue por dentro.
+  supabase-auth:
+    image: supabase/auth:v2.195.0
+    restart: unless-stopped
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: '9999'
+      # Solo se usa para armar los enlaces de los emails (recuperación de contraseña).
+      API_EXTERNAL_URL: ${APP_URL:?falta APP_URL}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${SUPABASE_DB_PASSWORD:?falta SUPABASE_DB_PASSWORD}@supabase-db:5432/supabase_auth?search_path=auth&sslmode=disable
+
+      GOTRUE_SITE_URL: ${APP_URL:?falta APP_URL}
+      GOTRUE_URI_ALLOW_LIST: ${APP_URL:?falta APP_URL}
+
+      # El alta pasa siempre por nuestra API, que crea el perfil local en estado Pendiente.
+      GOTRUE_DISABLE_SIGNUP: 'true'
+
+      # Mismo secreto que Supabase__JwtSecret en el API: GoTrue firma los tokens y el API los valida.
+      GOTRUE_JWT_SECRET: ${SUPABASE_JWT_SECRET:?falta SUPABASE_JWT_SECRET}
+      GOTRUE_JWT_EXP: '3600'
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+
+      # El control de acceso lo hace la aprobación del Admin, no la confirmación por email.
+      GOTRUE_MAILER_AUTOCONFIRM: 'true'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:?falta SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-465}
+      GOTRUE_SMTP_USER: ${SMTP_USERNAME:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASSWORD:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM_ADDRESS:?falta SMTP_FROM_ADDRESS}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_FROM_NAME:-Teleradiologia}
+      GOTRUE_LOG_LEVEL: info
+
   api:
     image: ${IMAGE_PREFIX:-teleradiologia}/api:${IMAGE_TAG:-latest}
     build:
@@ -59,40 +119,44 @@ services:
 
       # Con nginx proxeando /api, el navegador nunca hace una petición cross-origin y CORS no
       # entra en juego. Se deja configurado por si algún día el API se sirve en otro dominio.
-      Cors__AllowedOrigins__0: ${APP_URL:-}
+      Cors__AllowedOrigins__0: ${APP_URL:?falta APP_URL}
 
-      # Mínimo 32 bytes o la API se niega a arrancar (validación en Program.cs).
-      # Generar con: openssl rand -base64 48
-      Jwt__Key: ${JWT_KEY:?falta JWT_KEY (openssl rand -base64 48)}
-      Jwt__Issuer: ${JWT_ISSUER:-Teleradiologia.Api}
-      Jwt__Audience: ${JWT_AUDIENCE:-Teleradiologia.Frontend}
-      Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-60}
+      # Autenticación. Sin estas variables el API cae en los valores de appsettings.json, que son
+      # los de desarrollo y están publicados en el repo: cualquiera podría firmarse un token de Admin.
+      Supabase__Url: 'http://supabase-auth:9999'
+      Supabase__JwtSecret: ${SUPABASE_JWT_SECRET:?falta SUPABASE_JWT_SECRET}
+      # JWT con role=service_role FIRMADO CON SUPABASE_JWT_SECRET. Ver .env.prod.example.
+      Supabase__ServiceRoleKey: ${SUPABASE_SERVICE_ROLE_KEY:?falta SUPABASE_SERVICE_ROLE_KEY}
+      Supabase__Audience: 'authenticated'
+      # Vacío: GoTrue self-hosted no emite claim `iss`. Supabase Cloud sí.
+      Supabase__Issuer: ''
 
-      # Solo se usa si la base arranca vacía. Cambiar esta contraseña apenas entrés la primera vez.
-      Seed__AdminEmail: ${SEED_ADMIN_EMAIL:?falta SEED_ADMIN_EMAIL}
-      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD:?falta SEED_ADMIN_PASSWORD}
+      # Clave RSA con la que se firman los informes. En Production el API se niega a arrancar sin
+      # ella. NO la cambies después del primer informe firmado: las firmas viejas dejan de
+      # verificar. Guardá un respaldo fuera del servidor.
+      Firma__ClavePrivadaPem: ${FIRMA_CLAVE_PRIVADA_PEM:?falta FIRMA_CLAVE_PRIVADA_PEM}
 
       Email__SmtpHost: ${SMTP_HOST:?falta SMTP_HOST}
-      # 465 y no 587: SmtpEmailSender solo sabe TLS-directo (SslOnConnect) o texto plano — no
-      # implementa STARTTLS, que es lo que usa el 587. Ver la nota en el README.
+      # Con ModoTls=Auto el puerto decide el TLS: 465 arranca cifrado, 587/2525 suben con STARTTLS.
       Email__SmtpPort: ${SMTP_PORT:-465}
-      Email__UseSsl: ${SMTP_USE_SSL:-true}
+      Email__ModoTls: ${SMTP_MODO_TLS:-Auto}
       Email__Username: ${SMTP_USERNAME:-}
       Email__Password: ${SMTP_PASSWORD:-}
       Email__FromAddress: ${SMTP_FROM_ADDRESS:?falta SMTP_FROM_ADDRESS}
-      Email__FromName: ${SMTP_FROM_NAME:-Teleradiología}
+      Email__FromName: ${SMTP_FROM_NAME:-Teleradiologia}
     depends_on:
       postgres:
         condition: service_healthy
       orthanc:
+        condition: service_started
+      supabase-auth:
         condition: service_started
     healthcheck:
       # /api/health comprueba además que la conexión a Postgres esté viva.
       test: ['CMD', 'curl', '--fail', '--silent', 'http://127.0.0.1:8080/api/health']
       interval: 30s
       timeout: 5s
-      # La primera arranque corre migraciones + seed antes de escuchar: hay que darle aire.
-      start_period: 60s
+      start_period: 30s
       retries: 5
 
   # Único servicio expuesto. En Coolify, el dominio se asigna a ESTE servicio, puerto 80.
@@ -110,3 +174,4 @@ services:
 volumes:
   postgres-data:
   orthanc-data:
+  supabase-db-data:
