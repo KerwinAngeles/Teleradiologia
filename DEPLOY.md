@@ -146,9 +146,9 @@ No hay seed: el alta normal pasa por la pantalla de registro y necesita que un A
 así que el primer Admin se crea a mano. Son dos pasos, porque la identidad vive en GoTrue y el
 perfil (rol, estado) en nuestra base.
 
-**a. La credencial, en GoTrue.** La imagen de `supabase/auth` no trae shell ni `wget`, así que no
-se puede `docker exec` adentro. Se le habla desde un contenedor descartable en la misma red, que
-es además la única forma de llegarle: no publica puertos.
+**a. La credencial, en GoTrue.** La imagen de `supabase/auth` no trae shell ni herramientas,
+así que no se puede `docker exec` adentro. Se le habla desde un contenedor descartable en la
+misma red, que es además la única forma de llegarle: no publica puertos.
 
 ```bash
 AUTH=$(docker ps --format '{{.Names}}' | grep -m1 'supabase-auth')
@@ -158,11 +158,34 @@ RED=$(docker inspect "$AUTH" --format '{{range $k,$v := .NetworkSettings.Network
 # La clave se lee del contenedor del API: así no hay que copiarla ni dejarla en el historial.
 CLAVE=$(docker exec "$API" printenv Supabase__ServiceRoleKey)
 
-docker run --rm --network "$RED" alpine:3.20 wget -qO- \
-  --header="Authorization: Bearer $CLAVE" \
-  --header='Content-Type: application/json' \
-  --post-data='{"email":"admin@tu-dominio.com","password":"UNA-CONTRASEÑA-LARGA","email_confirm":true}' \
+EMAIL="admin@tu-dominio.com"
+printf 'Contraseña del admin: '; read -rs PASSWORD; echo
+
+docker run --rm --network "$RED" curlimages/curl:latest -s -X POST \
+  -H "Authorization: Bearer $CLAVE" \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"email_confirm\":true}" \
   http://supabase-auth:9999/admin/users
+```
+
+`curl` y no `wget`: el BusyBox de Alpine solo tiene `--post-data`, sin `--method` ni
+`--body-data`. Sirve para el alta, pero no para el PUT que cambia una contraseña.
+
+**Para cambiar una contraseña más adelante.** Hoy la aplicación no ofrece ni cambio ni
+recuperación por email, así que la única vía es esta:
+
+```bash
+DB=$(docker ps --format '{{.Names}}' | grep -m1 '^supabase-db-')
+ID=$(docker exec "$DB" psql -U supabase_auth_admin -d supabase_auth -tAc \
+  "SELECT id FROM auth.users WHERE email='$EMAIL'")
+
+printf 'Contraseña nueva: '; read -rs NUEVA; echo
+
+docker run --rm --network "$RED" curlimages/curl:latest -s -X PUT \
+  -H "Authorization: Bearer $CLAVE" \
+  -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$NUEVA\"}" \
+  "http://supabase-auth:9999/admin/users/$ID"
 ```
 
 **b. El perfil, en nuestra base:**
