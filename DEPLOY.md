@@ -94,8 +94,20 @@ Coolify (Traefik) termina el TLS y reenvía HTTP plano; `nginx.conf` ya reenvía
 
 ## 5. Primer deploy
 
-Dale **Deploy** y seguí los logs. El API va a arrancar y quedar *unhealthy*: es lo esperado, la
-base todavía está vacía. Eso se resuelve en el paso 7.
+Dale **Deploy** y seguí los logs. La primera vez tarda varios minutos: se descarga el SDK de
+.NET y se corre `npm ci` antes de compilar.
+
+Los seis contenedores van a quedar arriba y la API en *healthy* — `/api/health` solo comprueba
+que la conexión a Postgres viva, y la base existe aunque esté vacía. Pero en el log de `api`
+vas a ver este error, y es el esperado:
+
+```
+Faltan tablas en la base: Usuarios, Pacientes, Estudios, Informes, AuditLogs.
+Aplicá db/schema.sql antes de usar la Api.
+```
+
+`VerificarBaseAsync` lo registra y deja la aplicación corriendo. El sitio carga, pero cualquier
+operación real falla hasta el paso 7.
 
 ## 6. Opcional — compilar en CI en vez de en la VPS
 
@@ -134,16 +146,23 @@ No hay seed: el alta normal pasa por la pantalla de registro y necesita que un A
 así que el primer Admin se crea a mano. Son dos pasos, porque la identidad vive en GoTrue y el
 perfil (rol, estado) en nuestra base.
 
-**a. La credencial, en GoTrue:**
+**a. La credencial, en GoTrue.** La imagen de `supabase/auth` no trae shell ni `wget`, así que no
+se puede `docker exec` adentro. Se le habla desde un contenedor descartable en la misma red, que
+es además la única forma de llegarle: no publica puertos.
 
 ```bash
 AUTH=$(docker ps --format '{{.Names}}' | grep -m1 'supabase-auth')
+API=$(docker ps --format '{{.Names}}' | grep -m1 '^api-')
+RED=$(docker inspect "$AUTH" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
 
-docker exec -i "$AUTH" wget -qO- \
-  --header="Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+# La clave se lee del contenedor del API: así no hay que copiarla ni dejarla en el historial.
+CLAVE=$(docker exec "$API" printenv Supabase__ServiceRoleKey)
+
+docker run --rm --network "$RED" alpine:3.20 wget -qO- \
+  --header="Authorization: Bearer $CLAVE" \
   --header='Content-Type: application/json' \
   --post-data='{"email":"admin@tu-dominio.com","password":"UNA-CONTRASEÑA-LARGA","email_confirm":true}' \
-  http://127.0.0.1:9999/admin/users
+  http://supabase-auth:9999/admin/users
 ```
 
 **b. El perfil, en nuestra base:**

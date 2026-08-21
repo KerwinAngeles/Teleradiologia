@@ -55,7 +55,14 @@ services:
       POSTGRES_PASSWORD: ${SUPABASE_DB_PASSWORD:?falta SUPABASE_DB_PASSWORD}
     volumes:
       - supabase-db-data:/var/lib/postgresql/data
-      - ./docker/supabase/01-init-auth.sql:/docker-entrypoint-initdb.d/01-init-auth.sql:ro
+    # El contenido va embebido y no como bind mount de ./docker/supabase/: esa ruta es
+    # relativa al host, y en un despliegue remoto no existe. Docker no falla cuando el origen
+    # de un bind mount falta — crea un directorio vacío. Postgres lo ignora por no ser un .sql,
+    # inicializa sin el esquema `auth`, y GoTrue queda reiniciando para siempre con
+    # «no schema has been selected to create in».
+    configs:
+      - source: init-auth
+        target: /docker-entrypoint-initdb.d/01-init-auth.sql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U supabase_auth_admin -d supabase_auth']
       interval: 10s
@@ -175,3 +182,18 @@ volumes:
   postgres-data:
   orthanc-data:
   supabase-db-data:
+
+# Copia de docker/supabase/01-init-auth.sql. Solo corre cuando el volumen de supabase-db
+# está vacío: sobre una base ya inicializada hay que aplicarlo a mano.
+#
+# Los $$$$ no son un error de tipeo. Compose usa $$ para escapar un $ literal, así que el
+# dollar-quoting de PostgreSQL hay que escribirlo duplicado: $$$$ acá llega como $$ al archivo.
+configs:
+  init-auth:
+    content: |
+      CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION supabase_auth_admin;
+
+      DO $$$$ BEGIN CREATE ROLE postgres SUPERUSER LOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$$$;
+      DO $$$$ BEGIN CREATE ROLE anon NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$$$;
+      DO $$$$ BEGIN CREATE ROLE authenticated NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$$$;
+      DO $$$$ BEGIN CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS; EXCEPTION WHEN duplicate_object THEN NULL; END $$$$;
